@@ -1,0 +1,466 @@
+# ================================================================
+# KAMINI
+# A small handmade world. Everything here is editable.
+# Change a value, push, and the whole experience shifts with you.
+# No code edits needed for anything in this file.
+# ================================================================
+
+# Which personality she meets on open.
+# One of: angry_kitten | sad_cloud | sweet_ask | shopping_muse |
+#         save_the_coins | cozy_crochet | just_for_fun
+active_theme: just_for_fun
+
+global:
+  her_name: "Kamini"
+  # always | rarely | never
+  show_her_name: "rarely"
+  # 0.0 to 1.0, the ceiling for every music track
+  music_volume: 0.35
+  # Honour the phone's reduce motion setting when true
+  reduced_motion_fallback: true
+  # Her device settings panel behind the tiny star
+  easter_egg_enabled: true
+  # Offer "add to home screen" after the ending
+  install_prompt: true
+  # Cap the 3D renderer for calmer phones
+  max_pixel_ratio: 2
+  # Number of taps on the tiny star before the secret opens
+  secret_taps: 2
+
+# A short breath before the first question. Keep it soft.
+intro:
+  line: "hey, you"
+  subline: "I left something here for you"
+  duration: 3200
+
+# These names map to the self hosted font files in src.
+# Two heading faces maximum, one body face. Swap freely.
+fonts:
+  heading: "Dancing Script"
+  subheading: "Parisienne"
+  body: "Quicksand"
+
+# Shared whispers. A question can add its own list,
+# which takes priority. One is chosen at random per tap.
+whispers:
+  - "nice try"
+  - "I saw that"
+  - "you are a menace, and I adore you"
+  - "hm. try again"
+  - "still not letting you go"
+  - "you really want to do that?"
+
+# The tiny lines a behavior whispers when it does its thing.
+# One is chosen at random from the matching list.
+behavior_lines:
+  swap_roles_correct: ["okay okay, you win"]
+  swap_roles_wrong: ["hm. that is not what you meant"]
+  dodge_accept: ["fine. you win this one"]
+  disabled_polite: ["not this one, love"]
+  escape: ["gone. it could not take the pressure"]
+  sneeze: ["achoo"]
+  sleepy: ["it fell asleep. let it rest"]
+
+# ================================================================
+# THEMES
+# Each theme is a complete personality: colour, scene, ending, tone.
+# Add a new theme by copying a block and giving it a fresh key.
+# The matching ending lives in src/components/endings and is
+# registered by name in src/scripts/endings.ts.
+# ================================================================
+themes:
+
+  angry_kitten:
+    label: "angry kitten"
+    mood: "gentle apology"
+    colors:
+      primary: "#E8A0AE"
+      secondary: "#FFF1EA"
+      accent: "#D96C8A"
+      ink: "#6B3B45"
+      soft: "#F7D8DC"
+      background_gradient: ["#FDEDEA", "#F9D9DD", "#F3C3CC"]
+    three_d:
+      clouds: true
+      cat: true
+      dog: false
+      particles: true
+      yarn_balls: false
+      crochet_hook: false
+      piggy_bank: false
+      shopping_bag: false
+      coins: false
+      envelope: false
+      hearts: false
+      flower: false
+    music: null
+    ending:
+      animation: "kitten_apology"
+      note: "I would rather sit in the quiet with you than be right. Come here when you are ready."
+      signature: "always yours"
+    microcopy_flavor: "apologetic_playful"
+
+  sad_cloud:
+    label: "sad cloud"
+    mood: "soft weather"
+    colors:
+      primary: "#B4A9D6"
+      secondary: "#F1F4FA"
+      accent: "#8E9FC4"
+      ink: "#4A4763"
+      soft: "#E3DFF3"
+      background_gradient: ["#EEF1F8", "#E3DFF3", "#D7D9EE"]
+    three_d:
+      clouds: true
+      cat: true
+      dog: false
+      particles: true
+      yarn_balls: false
+      crochet_hook: false
+      piggy_bank: false
+      shopping_bag: false
+      coins: false
+      envelope: false
+      hearts: false
+      flower: true
+    music: null
+    ending:
+      animation: "clouds_part_bloom"
+      note: "You do not have to carry today alone. I am right here, and I am not going anywhere."
+      signature: "here, quietly"
+    microcopy_flavor: "tender_quiet"
+
+  sweet_ask:
+    label: "sweet ask"
+    mood: "warm peach sunset"
+    colors:
+      primary: "#F2B48C"
+      secondary: "#FFF0DF"
+      accent: "#E88B5E"
+      ink: "#6E4634"
+      soft: "#FBDCC2"
+      background_gradient: ["#FFF2E2", "#FBDCC2", "#F6C4A4"]
+    three_d:
+      clouds: true
+      cat: false
+      dog: true
+      particles: true
+      yarn_balls: false
+      crochet_hook: false
+      piggy_bank: false
+      shopping_bag: false
+      coins: false
+      envelope: true
+      hearts: true
+      flower: false
+    music: null
+    ending:
+      animation: "puppy_envelope"
+      note: "One small yes? I promise to make it worth the trouble, and to bring snacks."
+      signature: "asking nicely"
+    microcopy_flavor: "sunny_asking"
+
+  shopping_muse:
+    label: "shopping muse"
+    mood: "candy and gold"
+    colors:
+      primary: "#F0A6C2"
+      secondary: "#FFF4E8"
+      accent: "#D9A441"
+      ink: "#6A3D4E"
+      soft: "#FBD7E3"
+      background_gradient: ["#FFF0F4", "#FBD7E3", "#F6C1D3"]
+    three_d:
+      clouds: true
+      cat: true
+      dog: false
+      particles: true
+      yarn_balls: false
+      crochet_hook: false
+      piggy_bank: false
+      shopping_bag: true
+      coins: true
+      envelope: false
+      hearts: false
+      flower: false
+    music: null
+    ending:
+      animation: "cat_shopping_bag"
+      note: "Buy the thing. But only if it makes you do that little smile I like."
+      signature: "your enabler"
+    microcopy_flavor: "flirty_teasing"
+
+  save_the_coins:
+    label: "save the coins"
+    mood: "mint and cream"
+    colors:
+      primary: "#A9CBB7"
+      secondary: "#F6F1E3"
+      accent: "#E2A7B4"
+      ink: "#3F5A4C"
+      soft: "#E2EFE3"
+      background_gradient: ["#EFF5EC", "#E2EFE3", "#D4E6D8"]
+    three_d:
+      clouds: true
+      cat: false
+      dog: false
+      particles: true
+      yarn_balls: false
+      crochet_hook: false
+      piggy_bank: true
+      shopping_bag: false
+      coins: true
+      envelope: false
+      hearts: false
+      flower: true
+    music: null
+    ending:
+      animation: "piggy_bank_bloom"
+      note: "We are saving for something soft and ours. A little at a time is still moving."
+      signature: "small steps, together"
+    microcopy_flavor: "gentle_saving"
+
+  cozy_crochet:
+    label: "cozy crochet"
+    mood: "handmade and warm"
+    colors:
+      primary: "#C9A28F"
+      secondary: "#F5EBDD"
+      accent: "#9BAE8B"
+      ink: "#5B463A"
+      soft: "#EAD8C8"
+      background_gradient: ["#F7EDE0", "#EAD8C8", "#DCC3B0"]
+    three_d:
+      clouds: true
+      cat: true
+      dog: false
+      particles: true
+      yarn_balls: true
+      crochet_hook: true
+      piggy_bank: false
+      shopping_bag: false
+      coins: false
+      envelope: false
+      hearts: false
+      flower: false
+    music: null
+    ending:
+      animation: "yarn_weave_note"
+      note: "Handmade things take time. So does loving you right. I am not rushing either."
+      signature: "stitched with care"
+    microcopy_flavor: "cozy_playful"
+
+  just_for_fun:
+    label: "just for fun"
+    mood: "cotton candy afternoon"
+    colors:
+      primary: "#F3B6CE"
+      secondary: "#FFF6EE"
+      accent: "#9FBFD8"
+      ink: "#66414F"
+      soft: "#FBE0EA"
+      background_gradient: ["#FFF3F7", "#FBE0EA", "#F6CFE0"]
+    three_d:
+      clouds: true
+      cat: true
+      dog: true
+      particles: true
+      yarn_balls: false
+      crochet_hook: false
+      piggy_bank: false
+      shopping_bag: false
+      coins: false
+      envelope: false
+      hearts: true
+      flower: false
+    music: null
+    ending:
+      animation: "cat_dog_chaos"
+      note: "Nothing clever. I just wanted to see you smile at something I made."
+      signature: "for no reason at all"
+    microcopy_flavor: "silly_in_love"
+
+# ================================================================
+# QUESTIONS
+# These run in order unless a button says otherwise.
+# Each button:
+#   label        what she sees
+#   role         correct | wrong | trick | neutral
+#   on_hover     behavior when a cursor hovers (desktop)
+#   on_tap       behavior when a finger lands (mobile)
+#   on_click     behavior when the button activates
+#   labels_cycle labels that rotate on wrong taps
+#   next         question id, or "ending". Correct buttons without
+#                next quietly move to the following question.
+#   note         optional small line under this button
+# Every behavior name is in src/scripts/behaviors.ts.
+# ================================================================
+questions:
+
+  - id: "photo_delete"
+    eyebrow: "about those photos"
+    text: "Do you want me to delete these photos?"
+    whispers:
+      - "that button is feeling shy"
+      - "it really does not want to be pressed"
+      - "you are chasing a coward"
+    buttons:
+      - label: "Yes"
+        role: "wrong"
+        on_hover: "runaway"
+        on_tap: "runaway"
+        on_click: "swap_label"
+        labels_cycle: ["Yes", "wait no", "please no", "I did not mean it", "okay stop"]
+      - label: "No"
+        role: "correct"
+        on_hover: "grow"
+        on_click: "grow"
+        next: "photo_confirm"
+    transition_out: "fade_soft"
+
+  - id: "photo_confirm"
+    eyebrow: "just checking"
+    text: "Are you sure?"
+    whispers:
+      - "you said no already, remember"
+      - "I am writing that down"
+    buttons:
+      - label: "No"
+        role: "correct"
+        on_hover: "grow"
+        on_click: "swap_roles"
+        next: "yarn_picker"
+      - label: "Yes"
+        role: "wrong"
+        on_hover: "shrink"
+        on_tap: "jelly"
+    transition_out: "bounce_warm"
+
+  - id: "yarn_picker"
+    eyebrow: "a small favour"
+    text: "Help me pick a yarn color."
+    theme_override: "cozy_crochet"
+    whispers:
+      - "that one unravelled a little"
+      - "it is not the one, and it knows"
+      - "the yarn is being dramatic"
+    buttons:
+      - label: "dusty rose"
+        role: "wrong"
+        on_hover: "runaway"
+        on_tap: "unravel"
+        on_click: "unravel"
+      - label: "warm sage"
+        role: "correct"
+        on_hover: "grow"
+        on_click: "grow"
+        next: "compliment_trap"
+      - label: "butter cream"
+        role: "wrong"
+        on_hover: "peek_a_boo"
+        on_tap: "unravel"
+        on_click: "unravel"
+    transition_out: "thread_pull"
+
+  - id: "compliment_trap"
+    eyebrow: "true facts"
+    text: "You are the cutest."
+    whispers:
+      - "says the cutest one"
+      - "that answer is hiding now"
+      - "you are not escaping that compliment"
+    buttons:
+      - label: "I know"
+        role: "wrong"
+        on_hover: "peek_a_boo"
+        on_tap: "hide_behind"
+        on_click: "swap_label"
+        labels_cycle: ["I know", "I mean", "maybe", "fine, you too"]
+      - label: "You are cuter"
+        role: "correct"
+        on_hover: "grow"
+        on_click: "grow"
+        next: "silly_sneeze"
+    transition_out: "fade_soft"
+
+  - id: "silly_sneeze"
+    eyebrow: "no reason"
+    text: "Want to see something silly?"
+    theme_override: "just_for_fun"
+    whispers:
+      - "bless you, tiny button"
+      - "it sneezes when nervous"
+      - "that one has no manners"
+    buttons:
+      - label: "bless you"
+        role: "wrong"
+        on_hover: "sneeze"
+        on_tap: "sneeze"
+        on_click: "sneeze"
+        labels_cycle: ["bless you", "again?", "oh no", "gesundheit", "sit still"]
+      - label: "okay, show me"
+        role: "correct"
+        on_hover: "grow"
+        on_click: "jelly"
+        next: "final_ask"
+    transition_out: "bounce_warm"
+
+  - id: "final_ask"
+    eyebrow: "last one, promise"
+    text: "Can I keep you, exactly like this?"
+    # Optional per theme wording. If the active theme is not listed,
+    # the text above is used.
+    text_by_theme:
+      angry_kitten: "Still mad at me? Can I sit with you anyway?"
+      sad_cloud: "Can I stay here until the clouds move?"
+      sweet_ask: "Say yes and I will owe you one forever."
+      shopping_muse: "Can I keep you, and maybe carry the bags?"
+      save_the_coins: "Can we keep saving for our little someday?"
+      cozy_crochet: "Can I keep you, even when I drop a stitch?"
+      just_for_fun: "Can I keep you, exactly like this?"
+    whispers:
+      - "the button is patient, unlike me"
+      - "it is a very easy yes"
+    buttons:
+      - label: "obviously"
+        role: "correct"
+        on_hover: "grow"
+        on_click: "grow"
+        next: "ending"
+      - label: "let me think"
+        role: "wrong"
+        on_hover: "sleepy"
+        on_tap: "sleepy"
+        on_click: "sleepy"
+        labels_cycle: ["let me think", "hmm", "still thinking", "okay fine", "yes"]
+    transition_out: "ending_glow"
+
+# The ending is chosen by the active theme's ending.animation.
+# After the ending, she can replay it or start again.
+ending:
+  replay_label: "one more time"
+  restart_label: "from the top"
+  skip_label: "skip ahead"
+
+# ================================================================
+# THE TINY STAR
+# A soft settings corner she has to notice. Local only.
+# ================================================================
+easter_egg:
+  trigger: "tiny_star_corner"
+  unlock_after_taps: 2
+  panel_title: "a little secret"
+  panel_subtitle: "just between us, on this phone"
+  hint_after_seconds: 0
+  # Values saved to localStorage and never sent anywhere.
+  settings:
+    theme: true
+    music_volume: true
+    reduced_motion: true
+    replay_ending: true
+
+install:
+  title: "keep me close"
+  body: "so it is there when you miss me."
+  button: "add"
+  dismiss: "not now"

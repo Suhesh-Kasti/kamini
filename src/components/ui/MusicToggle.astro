@@ -1,0 +1,20 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: className = "" } = Astro.props;
+---
+
+<button
+  type="button"
+  class:list={["icon-btn", "music-toggle", className]}
+  data-music-toggle
+  aria-pressed="false"
+  aria-label="turn music off"
+  title="music"
+>
+  <span class="music-note" aria-hidden="true"></span>
+  <span class="music-note" aria-hidden="true"></span>
+  <i class="fa-solid fa-volume-high icon-on" aria-hidden="true"></i>
+  <i class="fa-solid fa-volume-xmark icon-off" aria-hidden="true"></i>
+</button>

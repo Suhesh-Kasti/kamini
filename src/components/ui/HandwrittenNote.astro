@@ -1,0 +1,22 @@
+---
+interface Props {
+  variant?: "plain" | "receipt";
+  class?: string;
+}
+
+const { variant = "plain", class: className = "" } = Astro.props;
+---
+
+<div
+  class:list={["note-paper", variant === "receipt" && "note-paper--receipt", className]}
+  data-note-paper
+>
+  <p class="note-text" data-note-text></p>
+  <p class="note-sign" data-note-sign></p>
+  <svg class="note-heart" viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M12 21s-7.2-4.6-9.4-9.1C.8 8.2 2.7 5 6 5c1.9 0 3.3 1 4.1 2.2C10.9 6 12.3 5 14.2 5c3.3 0 5.2 3.2 3.4 6.9C19.2 16.4 12 21 12 21z"
+    />
+  </svg>
+</div>

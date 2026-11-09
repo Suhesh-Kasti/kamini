@@ -1,0 +1,131 @@
+---
+import "@fontsource/dancing-script/400.css";
+import "@fontsource/dancing-script/600.css";
+import "@fontsource/dancing-script/700.css";
+import "@fontsource/parisienne/400.css";
+import "@fontsource/quicksand/400.css";
+import "@fontsource/quicksand/500.css";
+import "@fontsource/quicksand/600.css";
+import "@fontsource/quicksand/700.css";
+import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
+import "@fortawesome/fontawesome-free/css/solid.min.css";
+import "../styles/global.css";
+import "../styles/endings.css";
+
+import { siteConfig, themeOrFallback } from "../lib/site-config";
+import MusicToggle from "../components/ui/MusicToggle.astro";
+import EasterEggPanel from "../components/ui/EasterEggPanel.astro";
+
+interface Props {
+  title?: string;
+}
+
+const theme = themeOrFallback(siteConfig.active_theme);
+const c = theme.colors;
+const pageTitle =
+  siteConfig.global.show_her_name === "always"
+    ? `for ${siteConfig.global.her_name}`
+    : "a little something";
+
+const { title = pageTitle } = Astro.props;
+
+const vars = [
+  `--c-primary:${c.primary}`,
+  `--c-secondary:${c.secondary}`,
+  `--c-accent:${c.accent}`,
+  `--c-ink:${c.ink}`,
+  `--c-soft:${c.soft}`,
+  `--grad-1:${c.background_gradient[0]}`,
+  `--grad-2:${c.background_gradient[1]}`,
+  `--grad-3:${c.background_gradient[2]}`,
+].join(";");
+---
+
+<!doctype html>
+<html lang="en" data-theme={siteConfig.active_theme} style={vars}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content={c.background_gradient[0]} />
+    <meta
+      name="description"
+      content="A small handmade world with a question or two and a soft ending."
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="a little something" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript">This little world needs JavaScript to bloom. Turn it on and come back.</div>
+    </noscript>
+
+    <div id="app">
+      <div class="sky" aria-hidden="true"></div>
+      <div class="aurora aurora--a" aria-hidden="true"></div>
+      <div class="aurora aurora--b" aria-hidden="true"></div>
+      <div class="aurora aurora--c" aria-hidden="true"></div>
+      <canvas id="three-stage" aria-hidden="true"></canvas>
+      <div class="ground-fog" aria-hidden="true"></div>
+
+      <main class="stage">
+        <slot />
+      </main>
+
+      <div class="corner corner--left">
+        <MusicToggle />
+      </div>
+
+      <button
+        type="button"
+        id="secret-trigger"
+        class="tiny-star"
+        aria-label="a very small secret"
+        title="a very small secret"
+      >
+        <svg viewBox="0 0 48 48" aria-hidden="true">
+          <path
+            class="spark"
+            d="M24 3.5c1.7 9.4 7 14.7 16.4 16.4C31 21.6 25.7 26.9 24 36.3 22.3 26.9 17 21.6 7.6 19.9 17 18.2 22.3 12.9 24 3.5Z"
+          />
+        </svg>
+      </button>
+
+      <div class="install" id="install" role="dialog" aria-label="keep this close" aria-hidden="true">
+        <div class="install__text">
+          <p class="install__title" data-install-title></p>
+          <p class="install__body" data-install-body></p>
+        </div>
+        <div class="install__row">
+          <button type="button" class="soft-btn install__action" data-install-action></button>
+          <button type="button" class="icon-btn install__dismiss" data-install-dismiss aria-label="not now">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="intro" id="intro" aria-hidden="true">
+        <p class="intro__line" data-intro-line></p>
+        <p class="intro__sub" data-intro-sub></p>
+      </div>
+    </div>
+
+    <EasterEggPanel />
+
+    <script
+      id="kamini-config"
+      type="application/json"
+      is:inline
+      set:html={JSON.stringify(siteConfig)}
+    ></script>
+    <script>
+      import "../scripts/app";
+    </script>
+  </body>
+</html>

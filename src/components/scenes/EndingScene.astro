@@ -1,0 +1,30 @@
+---
+import KittenApology from "../endings/KittenApology.astro";
+import CloudsPartBloom from "../endings/CloudsPartBloom.astro";
+import PuppyEnvelope from "../endings/PuppyEnvelope.astro";
+import CatShoppingBag from "../endings/CatShoppingBag.astro";
+import PiggyBankBloom from "../endings/PiggyBankBloom.astro";
+import YarnWeaveNote from "../endings/YarnWeaveNote.astro";
+import CatDogChaos from "../endings/CatDogChaos.astro";
+
+const endings = [
+  { name: "kitten_apology", Component: KittenApology },
+  { name: "clouds_part_bloom", Component: CloudsPartBloom },
+  { name: "puppy_envelope", Component: PuppyEnvelope },
+  { name: "cat_shopping_bag", Component: CatShoppingBag },
+  { name: "piggy_bank_bloom", Component: PiggyBankBloom },
+  { name: "yarn_weave_note", Component: YarnWeaveNote },
+  { name: "cat_dog_chaos", Component: CatDogChaos },
+];
+---
+
+<section id="ending-scene" class="ending" hidden aria-live="polite">
+  <div id="ending-host" class="ending__host"></div>
+  <div class="ending__actions" data-ending-actions></div>
+
+  {endings.map(({ name, Component }) => (
+    <template data-ending={name}>
+      <Component />
+    </template>
+  ))}
+</section>

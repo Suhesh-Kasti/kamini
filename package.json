@@ -1,0 +1,32 @@
+{
+  "name": "kamini",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A small handmade world for Kamini.",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "@fontsource/dancing-script": "^5.1.1",
+    "@fontsource/parisienne": "^5.1.1",
+    "@fontsource/quicksand": "^5.1.1",
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "astro": "^5.1.1",
+    "gsap": "^3.12.7",
+    "js-yaml": "^4.1.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.170.0",
+    "typescript": "^5.7.2"
+  }
+}

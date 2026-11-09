@@ -1,0 +1,88 @@
+---
+import { siteConfig } from "../../lib/site-config";
+const themes = Object.entries(siteConfig.themes);
+const egg = siteConfig.easter_egg;
+---
+
+<div id="secret-backdrop" class="sheet-backdrop" aria-hidden="true"></div>
+
+<aside
+  id="secret-sheet"
+  class="sheet"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="secret-title"
+  aria-hidden="true"
+>
+  <div class="sheet__handle" aria-hidden="true"></div>
+
+  <header class="sheet__head">
+    <div>
+      <h2 id="secret-title" class="sheet__title" data-panel-title>{egg.panel_title}</h2>
+      <p class="sheet__sub" data-panel-subtitle>{egg.panel_subtitle}</p>
+    </div>
+    <button type="button" class="sheet__close" data-close-panel aria-label="close the secret panel">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <section class="sheet__section">
+    <p class="sheet__label"><span>her mood today</span></p>
+    <div class="chips" data-theme-chips>
+      {themes.map(([id, theme]) => (
+        <button type="button" class="chip" data-theme={id} aria-pressed="false">
+          <span
+            class="chip__dot"
+            style={`background: linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.accent});`}
+            aria-hidden="true"
+          ></span>
+          <span>{theme.label}</span>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <section class="sheet__section">
+    <label class="sheet__label" for="secret-volume"><span>music, softly</span></label>
+    <div class="slider-row">
+      <i class="fa-solid fa-volume-low" aria-hidden="true"></i>
+      <input
+        id="secret-volume"
+        data-volume
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={Math.round(siteConfig.global.music_volume * 100)}
+        aria-label="music volume"
+      />
+      <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+    </div>
+  </section>
+
+  <section class="sheet__section">
+    <p class="sheet__label"><span>how much it moves</span></p>
+    <div class="switch-row">
+      <button type="button" class="soft-btn" data-motion-toggle aria-pressed="false">
+        <i class="fa-solid fa-feather" aria-hidden="true"></i>
+        <span>follow device</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="sheet__section">
+    <p class="sheet__label"><span>again?</span></p>
+    <div class="sheet__actions">
+      <button type="button" class="soft-btn" data-replay-ending>
+        <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+        <span>{siteConfig.ending.replay_label}</span>
+      </button>
+      <button type="button" class="soft-btn" data-restart>
+        <i class="fa-solid fa-arrow-rotate-left" aria-hidden="true"></i>
+        <span>{siteConfig.ending.restart_label}</span>
+      </button>
+    </div>
+  </section>
+
+  <p class="sheet__whisper">saved only on this phone. nothing leaves it.</p>
+</aside>

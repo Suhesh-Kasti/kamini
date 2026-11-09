@@ -1,0 +1,18 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: className = "" } = Astro.props;
+---
+
+<section
+  id="question-scene"
+  class:list={["scene", className]}
+  aria-live="polite"
+  aria-label="a small question"
+>
+  <p class="eyebrow" data-eyebrow></p>
+  <h1 class="question" data-question></h1>
+  <div class="answers" data-answers role="group" aria-label="answers"></div>
+  <p class="whisper" data-whisper aria-live="polite"></p>
+</section>
