@@ -116,6 +116,7 @@ export async function requestPermission(
   layer.innerHTML = `
     <div class="permission-card" role="dialog" aria-modal="true" aria-labelledby="permission-title">
       <span class="permission-card__icon"><i class="fa-solid fa-${prompt.icon}" aria-hidden="true"></i></span>
+      <span class="permission-card__kicker">${kind} permission</span>
       <h3 id="permission-title">${overrides.title ?? prompt.title}</h3>
       <p>${overrides.body ?? prompt.body}</p>
       <div class="permission-card__actions">
@@ -616,8 +617,8 @@ const mountCatch: GameMount = (container, ctx) => {
   const target = document.createElement("button");
   target.type = "button";
   target.className = "catch-target";
-  target.setAttribute("aria-label", `catch ${str(ctx.content, "target", "the little camera")}`);
-  target.innerHTML = '<i class="fa-solid fa-camera-retro" aria-hidden="true"></i>';
+  target.setAttribute("aria-label", `catch ${str(ctx.content, "target", "the little thing")}`);
+  target.innerHTML = `<i class="fa-solid fa-${str(ctx.content, "icon", "heart")}" aria-hidden="true"></i>`;
   stage.append(target);
   const hint = el("p", "interaction__hint is-concealed", str(ctx.content, "hint", "caught it."));
   hint.setAttribute("aria-live", "polite");
@@ -965,7 +966,7 @@ const mountHold: GameMount = (container, ctx) => {
 interface SortItem { label: string; bin?: string; }
 
 const mountSort: GameMount = (container, ctx) => {
-  const { root } = gameShell("mg-sort", str(ctx.content, "prompt", "sort them into the right bins."));
+  const { root } = gameShell("mg-sort", str(ctx.content, "prompt", "tap a thing, then tap keep or let go."));
   const binLabels = list<string>(ctx.content, "bins");
   const itemsData = list<SortItem>(ctx.content, "items");
   const stage = el("div", "mg-sort__stage");
@@ -974,13 +975,13 @@ const mountSort: GameMount = (container, ctx) => {
     bin.type = "button";
     bin.className = "mg-bin";
     bin.dataset.bin = label;
-    bin.innerHTML = `<span class="mg-bin__mouth"></span><span class="mg-bin__label">${label}</span>`;
+    bin.innerHTML = `<span class="mg-bin__mouth"></span><span class="mg-bin__label">${label}</span><span class="mg-bin__contents"></span>`;
     stage.append(bin);
     return bin;
   });
   const tray = el("div", "mg-sort__items");
   stage.append(tray);
-  const hint = el("p", "interaction__hint", "no wrong answers. only brave ones.");
+  const hint = el("p", "interaction__hint", "tap a thing, then tap a bin.");
   root.append(stage, hint);
   container.append(root);
 
@@ -996,17 +997,35 @@ const mountSort: GameMount = (container, ctx) => {
     if (done || !alive) return;
     const expected = itemsData.find((entry) => entry.label === item.dataset.label)?.bin;
     if (expected && expected === bin) {
+      const target = bins.find((node) => node.dataset.bin === bin);
+      const targetRect = target?.getBoundingClientRect();
+      const itemRect = item.getBoundingClientRect();
       item.classList.add("is-sorted");
       item.disabled = true;
-      item.style.transform = "";
-      const target = bins.find((node) => node.dataset.bin === bin);
-      if (target) {
-        target.classList.add("is-fed");
-        window.setTimeout(() => target.classList.remove("is-fed"), 700);
-      }
       selected = null;
       ctx.cue("success");
       hint.textContent = "there. that belongs there.";
+      if (target && targetRect) {
+        const contents = target.querySelector<HTMLElement>(".mg-bin__contents");
+        gsap.to(item, {
+          x: targetRect.left + targetRect.width / 2 - (itemRect.left + itemRect.width / 2),
+          y: targetRect.top + 18 - (itemRect.top + itemRect.height / 2),
+          scale: 0.72,
+          opacity: 0,
+          duration: 0.35,
+          ease: "power2.in",
+          onComplete: () => {
+            item.style.display = "none";
+            if (contents) {
+              const chip = el("span", "mg-bin__chip", item.textContent ?? "");
+              contents.append(chip);
+              gsap.fromTo(chip, { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.8)" });
+            }
+          },
+        });
+        target.classList.add("is-fed");
+        window.setTimeout(() => target.classList.remove("is-fed"), 700);
+      }
       const remaining = tray.querySelectorAll(".mg-sort__item:not(.is-sorted)").length;
       if (remaining === 0) {
         done = true;
@@ -1033,8 +1052,16 @@ const mountSort: GameMount = (container, ctx) => {
     item.textContent = entry.label;
     item.addEventListener("click", () => {
       if (done) return;
+      if (selected === item) {
+        selected = null;
+        item.classList.remove("is-selected");
+        hint.textContent = "tap a thing, then tap a bin.";
+        return;
+      }
+      items.forEach((node) => node.classList.remove("is-selected"));
       selected = item;
-      hint.textContent = "now pick a bin.";
+      item.classList.add("is-selected");
+      hint.textContent = "now tap keep or let go.";
       gsap.fromTo(item, { scale: 1 }, { scale: 1.06, duration: 0.15, yoyo: true, repeat: 1, ease: "power2.inOut" });
     });
     item.addEventListener("pointerdown", (event) => {
@@ -1487,6 +1514,597 @@ const mountPull: GameMount = (container, ctx) => {
   };
 };
 
+/* 13. Blow the cloud away ----------------------------------------------- */
+
+const mountBlow: GameMount = (container, ctx) => {
+  const { root } = gameShell("mg-blow", str(ctx.content, "prompt", "blow at the cloud. a little puff is enough."));
+  if (!ctx.stream) throw new Error("No microphone stream");
+  const stage = el("div", "mg-blow__stage");
+  const cloud = el("div", "mg-blow__cloud");
+  for (let index = 0; index < 10; index += 1) cloud.append(el("span", "mg-blow__puff"));
+  stage.append(cloud);
+  const meter = el("div", "mg-blow__meter");
+  const fill = el("span", "mg-blow__fill");
+  meter.append(fill);
+  const hint = el("p", "interaction__hint", "a little puff.");
+  const skip = el("button", "soft-btn mg-blow__skip", "use a tap instead");
+  skip.type = "button";
+  root.append(stage, meter, hint, skip);
+  container.append(root);
+
+  let alive = true;
+  let done = false;
+  let progress = 0;
+  let audio: AudioContext | null = null;
+  let source: MediaStreamAudioSourceNode | null = null;
+  let analyser: AnalyserNode | null = null;
+  let data: Uint8Array | null = null;
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    gsap.ticker.remove(tick);
+    ctx.cue("success");
+    hint.textContent = str(ctx.content, "reveal", "there it is.");
+    ctx.whisper(str(ctx.content, "reveal", "there it is."));
+    stage.classList.add("is-blown");
+    cloud.querySelectorAll<HTMLElement>(".mg-blow__puff").forEach((puff, index) => {
+      gsap.to(puff, {
+        x: (index - 4.5) * 22,
+        y: -30 - Math.random() * 70,
+        scale: 0.4,
+        opacity: 0,
+        duration: ctx.reduced ? 0.2 : 0.8,
+        delay: index * 0.025,
+        ease: "power2.out",
+      });
+    });
+    window.setTimeout(() => { if (alive) ctx.complete(); }, ctx.reduced ? 400 : 1050);
+  };
+
+  const tick = () => {
+    if (!alive || done || !analyser || !data) return;
+    analyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let index = 0; index < data.length; index += 1) {
+      const value = (data[index] - 128) / 128;
+      sum += value * value;
+    }
+    const rms = Math.sqrt(sum / data.length);
+    if (rms > 0.015) {
+      progress = Math.min(1, progress + Math.min(0.09, (rms - 0.01) * 1.35));
+      fill.style.transform = `scaleX(${progress})`;
+      gsap.set(cloud, { scale: 1 + progress * 0.12, opacity: 1 - progress * 0.55 });
+      hint.textContent = progress > 0.6 ? "almost. keep going." : "a little more.";
+      if (progress >= 1) finish();
+    }
+  };
+
+  try {
+    audio = new AudioContext();
+    source = audio.createMediaStreamSource(ctx.stream);
+    analyser = audio.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.7;
+    data = new Uint8Array(analyser.fftSize);
+    source.connect(analyser);
+    void audio.resume().catch(() => undefined);
+    gsap.ticker.add(tick);
+  } catch (error) {
+    console.warn("[minigame] microphone analyser failed", error);
+    hint.textContent = "the microphone is shy. use the tap instead.";
+  }
+
+  skip.addEventListener("click", finish);
+  gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+  return () => {
+    alive = false;
+    done = true;
+    gsap.ticker.remove(tick);
+    try { source?.disconnect(); } catch { /* ignore */ }
+    void audio?.close().catch(() => undefined);
+    gsap.killTweensOf(Array.from(cloud.querySelectorAll("*")));
+  };
+};
+
+/* 14. Tap on the beat --------------------------------------------------- */
+
+const mountRhythm: GameMount = (container, ctx) => {
+  const { root } = gameShell("mg-rhythm", str(ctx.content, "prompt", "tap when the ring blooms."));
+  const hitsNeeded = Number(ctx.content.hits ?? 6) || 6;
+  const interval = 760;
+  const stage = el("div", "mg-rhythm__stage");
+  const ring = el("span", "mg-rhythm__ring");
+  const cat = el("span", "mg-rhythm__cat");
+  cat.innerHTML = '<i class="fa-solid fa-cat" aria-hidden="true"></i>';
+  stage.append(ring, cat);
+  const pips = el("div", "mg-rhythm__pips");
+  for (let index = 0; index < hitsNeeded; index += 1) pips.append(el("span", "mg-rhythm__pip"));
+  const tap = document.createElement("button");
+  tap.type = "button";
+  tap.className = "mg-rhythm__tap";
+  tap.textContent = "tap";
+  const hint = el("p", "interaction__hint", "listen for the ring.");
+  root.append(stage, pips, tap, hint);
+  container.append(root);
+
+  let alive = true;
+  let done = false;
+  let score = 0;
+  let beatIndex = -1;
+  let lastTap = 0;
+  const start = performance.now();
+  let judgeTimer = 0;
+
+  const pulse = () => {
+    if (ctx.reduced) return;
+    gsap.fromTo(ring, { scale: 1.3, opacity: 0.35 }, { scale: 1, opacity: 1, duration: 0.32, ease: "power2.out" });
+  };
+
+  const tick = () => {
+    if (!alive || done) return;
+    const index = Math.floor((performance.now() - start) / interval);
+    if (index > beatIndex) {
+      beatIndex = index;
+      pulse();
+      if (index > 0) ctx.cue("boop");
+    }
+  };
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    gsap.ticker.remove(tick);
+    tap.disabled = true;
+    stage.classList.add("is-done");
+    hint.textContent = "there. right on the beat.";
+    ctx.cue("success");
+    ctx.whisper("right on the beat. show off.");
+    window.setTimeout(() => { if (alive) ctx.complete(); }, ctx.reduced ? 400 : 850);
+  };
+
+  const judge = () => {
+    if (!alive || done) return;
+    const now = performance.now();
+    if (now - lastTap < 120) return;
+    lastTap = now;
+    const phase = ((now - start) % interval) / interval;
+    const distance = Math.min(phase, 1 - phase);
+    const offBeat = distance > 0.23;
+    cat.classList.remove("is-happy", "is-judging");
+    void cat.offsetWidth;
+    if (offBeat) {
+      ctx.cue("miss");
+      cat.classList.add("is-judging");
+      hint.textContent = str(ctx.content, "miss", "almost. listen for the next one.");
+      window.clearTimeout(judgeTimer);
+      judgeTimer = window.setTimeout(() => cat.classList.remove("is-judging"), 500);
+      return;
+    }
+    score += 1;
+    pips.children[score - 1]?.classList.add("is-hit");
+    ctx.cue("success");
+    cat.classList.add("is-happy");
+    hint.textContent = str(ctx.content, "hit", "there.");
+    window.clearTimeout(judgeTimer);
+    judgeTimer = window.setTimeout(() => cat.classList.remove("is-happy"), 480);
+    if (score >= hitsNeeded) finish();
+  };
+
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      judge();
+    }
+  };
+  tap.addEventListener("click", judge);
+  document.addEventListener("keydown", onKey);
+  gsap.ticker.add(tick);
+  gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+  return () => {
+    alive = false;
+    done = true;
+    gsap.ticker.remove(tick);
+    document.removeEventListener("keydown", onKey);
+    window.clearTimeout(judgeTimer);
+    gsap.killTweensOf([ring, cat]);
+  };
+};
+
+/* 15. Trace the line ---------------------------------------------------- */
+
+const mountTrace: GameMount = (container, ctx) => {
+  const { root } = gameShell("mg-trace", str(ctx.content, "prompt", "follow the dotted line without lifting your finger."));
+  const holder = el("div", "mg-trace__holder");
+  const pathD = "M 28 142 C 44 42, 98 32, 124 98 S 180 168, 212 92 S 252 30, 276 86";
+  holder.innerHTML = `<svg viewBox="0 0 300 190" class="mg-trace__svg" role="img" aria-label="trace the dotted path"><path class="mg-trace__track" d="${pathD}"/><path class="mg-trace__fill" d="${pathD}"/><circle class="mg-trace__thumb" r="8" cx="28" cy="142"/></svg>`;
+  const hint = el("p", "interaction__hint", "start at the little dot.");
+  const skip = el("button", "soft-btn mg-trace__skip", "trace it for me");
+  skip.type = "button";
+  root.append(holder, hint, skip);
+  container.append(root);
+
+  const svg = holder.querySelector<SVGSVGElement>(".mg-trace__svg");
+  const track = holder.querySelector<SVGPathElement>(".mg-trace__track");
+  const fill = holder.querySelector<SVGPathElement>(".mg-trace__fill");
+  const thumb = holder.querySelector<SVGCircleElement>(".mg-trace__thumb");
+  if (!svg || !track || !fill || !thumb) throw new Error("Trace paths missing");
+
+  let alive = true;
+  let done = false;
+  let tracing = false;
+  let progressIndex = 0;
+  const samples = 180;
+  const total = track.getTotalLength();
+  const points: DOMPoint[] = [];
+  for (let index = 0; index <= samples; index += 1) {
+    const point = track.getPointAtLength((total * index) / samples);
+    points.push(new DOMPoint(point.x, point.y));
+  }
+  fill.style.strokeDasharray = String(total);
+  fill.style.strokeDashoffset = String(total);
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    holder.classList.add("is-done");
+    hint.textContent = str(ctx.content, "reveal", "traced. remembered.");
+    ctx.cue("success");
+    ctx.whisper(str(ctx.content, "reveal", "traced. remembered."));
+    window.setTimeout(() => { if (alive) ctx.complete(); }, ctx.reduced ? 400 : 900);
+  };
+
+  const localPoint = (event: PointerEvent) => {
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const matrix = svg.getScreenCTM();
+    return matrix ? point.matrixTransform(matrix.inverse()) : new DOMPoint(0, 0);
+  };
+
+  const nearest = (x: number, y: number) => {
+    let best = 0;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < points.length; index += 1) {
+      const dx = points[index].x - x;
+      const dy = points[index].y - y;
+      const distance = dx * dx + dy * dy;
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    }
+    return { index: best, distance: Math.sqrt(bestDistance) };
+  };
+
+  const update = (index: number) => {
+    progressIndex = Math.max(progressIndex, Math.min(samples, index));
+    const ratio = progressIndex / samples;
+    fill.style.strokeDashoffset = String(total * (1 - ratio));
+    const point = points[progressIndex];
+    thumb.setAttribute("cx", String(point.x));
+    thumb.setAttribute("cy", String(point.y));
+    hint.textContent = ratio > 0.7 ? "almost." : "keep following it.";
+    if (ratio >= 0.84) finish();
+  };
+
+  const onDown = (event: PointerEvent) => {
+    if (!alive || done) return;
+    event.preventDefault();
+    const point = localPoint(event);
+    const found = nearest(point.x, point.y);
+    if (found.distance > 34) {
+      hint.textContent = "start at the little dot.";
+      return;
+    }
+    if (found.index > 10 && progressIndex === 0) {
+      hint.textContent = "start at the little dot.";
+      return;
+    }
+    tracing = true;
+    update(found.index);
+    try { svg.setPointerCapture(event.pointerId); } catch { /* fine */ }
+  };
+  const onMove = (event: PointerEvent) => {
+    if (!tracing || !alive || done) return;
+    const point = localPoint(event);
+    const found = nearest(point.x, point.y);
+    if (found.distance < 36 && found.index >= progressIndex && found.index <= progressIndex + 26) {
+      update(found.index);
+    }
+  };
+  const onUp = () => { tracing = false; };
+
+  svg.addEventListener("pointerdown", onDown);
+  svg.addEventListener("pointermove", onMove);
+  svg.addEventListener("pointerup", onUp);
+  svg.addEventListener("pointercancel", onUp);
+  skip.addEventListener("click", finish);
+  gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+  return () => {
+    alive = false;
+    done = true;
+    gsap.killTweensOf([root, fill, thumb]);
+  };
+};
+
+/* 16. Shake to reveal --------------------------------------------------- */
+
+const mountShake: GameMount = (container, ctx) => {
+  const { root } = gameShell("mg-shake", str(ctx.content, "prompt", "shake the little box. gently."));
+  const stage = el("div", "mg-shake__stage");
+  const box = el("div", "mg-shake__box");
+  const lid = el("span", "mg-shake__lid");
+  const note = el("p", "mg-shake__note", str(ctx.content, "reveal", "the note was in there."));
+  const body = el("span", "mg-shake__body");
+  box.append(body, lid, note);
+  stage.append(box);
+  const meter = el("div", "mg-shake__meter");
+  const fill = el("span", "mg-shake__fill");
+  meter.append(fill);
+  const hint = el("p", "interaction__hint", "a gentle shake.");
+  const tap = el("button", "soft-btn mg-shake__tap", "shake with a tap");
+  tap.type = "button";
+  root.append(stage, meter, hint, tap);
+  container.append(root);
+
+  let alive = true;
+  let done = false;
+  let progress = 0;
+  let lastMagnitude = 0;
+  let lastShake = 0;
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    box.classList.add("is-open");
+    hint.textContent = str(ctx.content, "reveal", "the note was in there.");
+    ctx.cue("success");
+    ctx.whisper(str(ctx.content, "reveal", "the note was in there."));
+    gsap.to(lid, { y: -36, rotate: -12, duration: 0.45, ease: "back.out(1.6)" });
+    gsap.to(note, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" });
+    gsap.to(box, { y: -5, duration: 0.2, yoyo: true, repeat: 1, ease: "power2.inOut" });
+    window.setTimeout(() => { if (alive) ctx.complete(); }, ctx.reduced ? 400 : 950);
+  };
+
+  const add = (amount: number) => {
+    if (done) return;
+    progress = Math.min(1, progress + amount);
+    fill.style.transform = `scaleX(${progress})`;
+    gsap.fromTo(box, { rotate: -2 }, { rotate: 2, duration: 0.1, yoyo: true, repeat: 1, ease: "sine.inOut" });
+    hint.textContent = progress > 0.65 ? "it is loosening." : "a little more.";
+    if (progress >= 1) finish();
+  };
+
+  const onMotion = (event: DeviceMotionEvent) => {
+    if (done) return;
+    const acceleration = event.accelerationIncludingGravity;
+    if (!acceleration) return;
+    const magnitude = Math.hypot(acceleration.x ?? 0, acceleration.y ?? 0, acceleration.z ?? 0);
+    const delta = Math.abs(magnitude - lastMagnitude);
+    lastMagnitude = magnitude;
+    const now = performance.now();
+    if (delta > 12 && now - lastShake > 90) {
+      lastShake = now;
+      add(Math.min(0.16, delta / 90));
+    }
+  };
+
+  if (ctx.caps.accel) window.addEventListener("devicemotion", onMotion);
+  tap.addEventListener("click", () => add(0.2));
+  gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+  return () => {
+    alive = false;
+    done = true;
+    window.removeEventListener("devicemotion", onMotion);
+    gsap.killTweensOf([box, lid, note]);
+  };
+};
+
+/* 17. Feed the cat ------------------------------------------------------ */
+
+interface FeedFood { label: string; icon?: string; }
+
+const mountFeed: GameMount = (container, ctx) => {
+  const { root } = gameShell("mg-feed", str(ctx.content, "prompt", "feed the cat. it is supervising."));
+  const foodsData = list<FeedFood>(ctx.content, "foods");
+  const stage = el("div", "mg-feed__stage");
+  const cat = el("div", "mg-feed__cat");
+  cat.innerHTML = '<i class="fa-solid fa-cat" aria-hidden="true"></i><span class="mg-feed__mouth">·</span>';
+  const bowl = el("div", "mg-feed__bowl");
+  const foodTray = el("div", "mg-feed__foods");
+  const hearts = el("div", "mg-feed__hearts");
+  const foods = foodsData.map((food) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "mg-feed__food";
+    button.dataset.label = food.label;
+    button.innerHTML = `<i class="fa-solid fa-${food.icon ?? "fish"}" aria-hidden="true"></i><span>${food.label}</span>`;
+    button.addEventListener("pointerdown", (event) => onDown(event, button));
+    button.addEventListener("click", () => feed(button));
+    foodTray.append(button);
+    return button;
+  });
+  foods.forEach(() => hearts.append(el("span", "mg-feed__heart")));
+  stage.append(cat, bowl, foodTray, hearts);
+  const hint = el("p", "interaction__hint", "one at a time.");
+  root.append(stage, hint);
+  container.append(root);
+
+  let alive = true;
+  let done = false;
+  let score = 0;
+  let dragged: HTMLButtonElement | null = null;
+  let startX = 0;
+  let startY = 0;
+  let moved = false;
+  let lastFeed = 0;
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    cat.classList.add("is-full");
+    hint.textContent = str(ctx.content, "full", "full. happy. still judging you.");
+    ctx.cue("success");
+    ctx.whisper(str(ctx.content, "full", "full. happy. still judging you."));
+    gsap.to(cat, { scale: 1.12, rotate: -3, duration: 0.4, ease: "back.out(1.6)" });
+    window.setTimeout(() => { if (alive) ctx.complete(); }, ctx.reduced ? 400 : 950);
+  };
+
+  const feed = (button: HTMLButtonElement) => {
+    if (!alive || done || button.dataset.used === "1") return;
+    const now = performance.now();
+    if (now - lastFeed < 220) return;
+    lastFeed = now;
+    button.dataset.used = "1";
+    button.classList.add("is-used");
+    score += 1;
+    cat.classList.remove("is-fed-1", "is-fed-2", "is-fed-3");
+    void cat.offsetWidth;
+    cat.classList.add(`is-fed-${Math.min(3, score)}`);
+    hearts.children[score - 1]?.classList.add("is-full");
+    ctx.cue("boop");
+    hint.textContent = score >= foods.length ? str(ctx.content, "full", "full.") : "nom.";
+    gsap.fromTo(cat, { scale: 1 }, { scale: 1.08, duration: 0.16, yoyo: true, repeat: 1, ease: "power2.inOut" });
+    if (score >= foods.length) finish();
+  };
+
+  function onDown(event: PointerEvent, button: HTMLButtonElement): void {
+    if (!alive || done || button.dataset.used === "1") return;
+    dragged = button;
+    moved = false;
+    startX = event.clientX;
+    startY = event.clientY;
+    try { button.setPointerCapture(event.pointerId); } catch { /* fine */ }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  }
+
+  function onMove(event: PointerEvent): void {
+    if (!dragged) return;
+    const x = event.clientX - startX;
+    const y = event.clientY - startY;
+    if (Math.hypot(x, y) > 6) moved = true;
+    gsap.set(dragged, { x, y });
+  }
+
+  function onUp(event: PointerEvent): void {
+    window.removeEventListener("pointermove", onMove);
+    if (!dragged) return;
+    const button = dragged;
+    dragged = null;
+    const catRect = cat.getBoundingClientRect();
+    const near = event.clientX > catRect.left - 60 && event.clientX < catRect.right + 60 && event.clientY > catRect.top - 60 && event.clientY < catRect.bottom + 60;
+    if (near) {
+      gsap.to(button, { x: 0, y: 0, scale: 0.2, opacity: 0.35, duration: 0.35, ease: "power2.in" });
+      feed(button);
+    } else {
+      gsap.to(button, { x: 0, y: 0, duration: 0.4, ease: "back.out(2)" });
+      if (!moved) feed(button);
+    }
+  }
+
+  gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+  return () => {
+    alive = false;
+    done = true;
+    window.removeEventListener("pointermove", onMove);
+    gsap.killTweensOf([cat, ...foods]);
+  };
+};
+
+/* 18. Spin the little wheel --------------------------------------------- */
+
+const mountWheel: GameMount = (container, ctx) => {
+  const { root } = gameShell("mg-wheel", str(ctx.content, "prompt", "spin it. whatever it lands on is true."));
+  const segments = list<string>(ctx.content, "segments");
+  const labels = segments.length ? segments : ["both", "both", "obviously"];
+  const count = labels.length;
+  const step = 360 / count;
+  const stage = el("div", "mg-wheel__stage");
+  const disc = el("div", "mg-wheel__disc");
+  const colors = [ctx.theme.colors.primary, ctx.theme.colors.secondary, ctx.theme.colors.accent];
+  disc.style.background = `conic-gradient(${labels.map((_, index) => `${colors[index % colors.length]} ${index * step}deg ${(index + 1) * step}deg`).join(", ")})`;
+  labels.forEach((label, index) => {
+    const node = el("span", "mg-wheel__label", label);
+    node.style.transform = `rotate(${index * step + step / 2}deg) translateY(-31%)`;
+    disc.append(node);
+  });
+  const pointer = el("span", "mg-wheel__pointer");
+  const hub = el("span", "mg-wheel__hub");
+  stage.append(disc, pointer, hub);
+  const result = el("p", "mg-wheel__result", "");
+  const tap = el("button", "soft-btn mg-wheel__tap", "spin");
+  tap.type = "button";
+  const hint = el("p", "interaction__hint", "swipe the wheel or tap spin.");
+  root.append(stage, result, tap, hint);
+  container.append(root);
+
+  let alive = true;
+  let done = false;
+  let spinning = false;
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+
+  const finish = (index: number) => {
+    if (done) return;
+    done = true;
+    const label = labels[index] ?? str(ctx.content, "result", "both.");
+    result.textContent = label;
+    result.classList.add("is-visible");
+    hint.textContent = str(ctx.content, "result", label);
+    ctx.cue("success");
+    ctx.whisper(str(ctx.content, "result", label));
+    window.setTimeout(() => { if (alive) ctx.complete(); }, ctx.reduced ? 450 : 1200);
+  };
+
+  const spin = () => {
+    if (done || spinning || !alive) return;
+    spinning = true;
+    tap.disabled = true;
+    const index = Math.floor(Math.random() * count);
+    const current = Number(gsap.getProperty(disc, "rotation")) || 0;
+    const currentMod = ((current % 360) + 360) % 360;
+    const targetAngle = (360 - (index + 0.5) * step) % 360;
+    let delta = targetAngle - currentMod;
+    if (delta < 0) delta += 360;
+    const finalRotation = current + (ctx.reduced ? 360 : 1080) + delta;
+    ctx.cue("boop");
+    hint.textContent = "round and round.";
+    gsap.to(disc, {
+      rotation: finalRotation,
+      duration: ctx.reduced ? 0.7 : 2.5,
+      ease: "power4.out",
+      onComplete: () => finish(index),
+    });
+  };
+
+  const onDown = (event: PointerEvent) => {
+    if (done) return;
+    dragging = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    try { stage.setPointerCapture(event.pointerId); } catch { /* fine */ }
+  };
+  const onUp = (event: PointerEvent) => {
+    if (!dragging || done) return;
+    dragging = false;
+    if (Math.hypot(event.clientX - startX, event.clientY - startY) > 18) spin();
+  };
+
+  stage.addEventListener("pointerdown", onDown);
+  stage.addEventListener("pointerup", onUp);
+  tap.addEventListener("click", spin);
+  gsap.fromTo(root, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
+  return () => {
+    alive = false;
+    done = true;
+    spinning = true;
+    gsap.killTweensOf(disc);
+  };
+};
+
 /* Registration --------------------------------------------------------- */
 
 mounts.scratch_card = mountScratch;
@@ -1501,3 +2119,9 @@ mounts.wipe_fog = mountWipe;
 mounts.memory_match = mountMemory;
 mounts.choose_item = mountChoose;
 mounts.pull_thread = mountPull;
+mounts.blow_reveal = mountBlow;
+mounts.rhythm_tap = mountRhythm;
+mounts.trace_line = mountTrace;
+mounts.shake_reveal = mountShake;
+mounts.feed_cat = mountFeed;
+mounts.spin_wheel = mountWheel;

@@ -5,16 +5,15 @@ import {
   EASE,
   initEases,
   prefersReducedMotion,
-  pulse,
   questionEntrance,
   sceneExit,
   splitWords,
 } from "./animations";
-import { resetHover, runBehavior, type BehaviorPhase } from "./behaviors";
+import { resetHover, runBehavior, safeOffset, type BehaviorPhase } from "./behaviors";
 import { playEnding } from "./endings";
 import { AudioPlayer } from "./audio";
 import { mountMinigame, verifyPermission, type MinigameCleanup } from "./minigames";
-import { runPersonality } from "./personalities";
+import { personalityTaunt } from "./personalities";
 import { buildPlan, clearSeen, type PlannedQuestion, type SessionPlan } from "./variants";
 import { detectCaps, permissionFor } from "./device";
 import { printKeepsake } from "./print";
@@ -64,7 +63,6 @@ let transitionToken = 0;
 let locked = false;
 let ended = false;
 let activating = false;
-let wrongBusy = false;
 type SiteState =
   | "loading"
   | "question_active"
@@ -79,7 +77,6 @@ let pendingTheme: string | null = null;
 let themeSwitching = false;
 const debugEnabled = new URLSearchParams(location.search).has("debug");
 let debugEl: HTMLElement | null = null;
-let lastWhisper = "";
 let lastEndingTheme = prefs.lastEndingTheme ?? config.active_theme;
 let panelOpen = false;
 let deferredPrompt: InstallEvent | null = null;
@@ -264,7 +261,7 @@ caps touch:${caps.touch} mouse:${caps.mouse} gyro:${caps.gyro} cam:${caps.camera
 permissions ${Object.entries(prefs.permissions ?? {}).map(([key, value]) => `${key}:${value}`).join(" ") || "-"}
 pending ${pendingTheme ?? "-"}
 audio ${audioState}
-activating ${activating} wrongBusy ${wrongBusy} locked ${locked}
+activating ${activating} locked ${locked}
 scene ${currentSceneKey || "-"}`;
 }
 
@@ -558,7 +555,6 @@ function updateMusic(question: Question, theme: Theme): void {
 
 function showWhisper(text: string): void {
   if (!whisperEl || !text) return;
-  lastWhisper = text;
   whisperEl.textContent = text;
   const token = (whisperEl as HTMLElement & { _token?: number })._token ?? 0;
   const next = token + 1;
@@ -583,39 +579,10 @@ function showWhisper(text: string): void {
   );
 }
 
-function pickWhisper(question: Question): string {
-  const pool = question.whispers?.length ? question.whispers : config.whispers;
-  if (!pool.length) return "";
-  let pick = pool[Math.floor(Math.random() * pool.length)];
-  if (pool.length > 1 && pick === lastWhisper) {
-    pick = pool[(pool.indexOf(pick) + 1) % pool.length];
-  }
-  return pick;
-}
-
 function triggerShimmer(): void {
   if (currentTheme.signature_moment !== "foil_shimmer" && currentTheme.motion !== "shimmer") return;
   document.documentElement.classList.add("is-shimmer");
   window.setTimeout(() => document.documentElement.classList.remove("is-shimmer"), 1200);
-}
-
-function addClawMark(btn: HTMLButtonElement): void {
-  if (currentTheme.signature_moment !== "claw_marks") return;
-  const layer = qs("[data-claw-layer]");
-  if (!layer) return;
-  const rect = btn.getBoundingClientRect();
-  const mark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  mark.setAttribute("viewBox", "0 0 80 80");
-  mark.classList.add("claw-mark");
-  mark.style.left = `${rect.left + rect.width * (0.25 + Math.random() * 0.5)}px`;
-  mark.style.top = `${rect.top - 18}px`;
-  mark.style.setProperty("--claw-rotation", `${-24 + Math.random() * 48}deg`);
-  mark.innerHTML =
-    '<path d="M8 10c14 10 24 24 30 44"/><path d="M22 4c12 12 20 26 25 46"/><path d="M38 2c10 13 16 28 19 48"/>';
-  layer.append(mark);
-  const saved = JSON.parse(sessionStorage.getItem("pocket-mood.claws") ?? "[]") as { left: string; top: string }[];
-  saved.push({ left: mark.style.left, top: mark.style.top });
-  sessionStorage.setItem("pocket-mood.claws", JSON.stringify(saved.slice(-8)));
 }
 
 function restoreClaws(): void {
@@ -694,10 +661,73 @@ function showStickerKeepsake(): void {
   };
 }
 
+function dodgeWrong(btn: HTMLButtonElement, def: QuestionButton, event: Event): void {
+  if (siteState !== "question_active" || locked || activating || ended) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const now = performance.now();
+  if (now - Number(btn.dataset.lastDodge ?? 0) < 420) return;
+  btn.dataset.lastDodge = String(now);
+
+  const pointer = event instanceof PointerEvent ? event : null;
+  const rect = btn.getBoundingClientRect();
+  const correct = currentButtons.find((candidate) => candidate.dataset.role === "correct");
+  const correctRect = correct?.getBoundingClientRect() ?? null;
+  const direction = pointer && pointer.clientX < rect.left + rect.width / 2 ? 1 : -1;
+  let offset = safeOffset(btn, 120, 72);
+  let x = direction * Math.max(72, Math.abs(offset.x));
+  let y = offset.y;
+  const overlapsCorrect = () => {
+    if (!correctRect) return false;
+    const left = rect.left + x;
+    const top = rect.top + y;
+    return left < correctRect.right + 10 && left + rect.width > correctRect.left - 10 && top < correctRect.bottom + 10 && top + rect.height > correctRect.top - 10;
+  };
+  if (overlapsCorrect()) {
+    x = -x;
+    y = -offset.y;
+    if (overlapsCorrect()) {
+      x = offset.x;
+      y = offset.y;
+    }
+  }
+
+  const currentX = Number(gsap.getProperty(btn, "x")) || 0;
+  const currentY = Number(gsap.getProperty(btn, "y")) || 0;
+  btn.dataset.dodging = "1";
+  gsap.timeline({ onComplete: () => { delete btn.dataset.dodging; } })
+    .to(btn, { x: currentX + x, y: currentY + y, rotate: gsap.utils.random(-7, 7), duration: 0.3, ease: EASE.pillow })
+    .to(btn, { scale: 1, duration: 0.18 }, 0);
+
+  if (def.personality) personalityTaunt(def.personality, btn, showWhisper);
+}
+
+function bindWrongButton(btn: HTMLButtonElement, def: QuestionButton): void {
+  const dodge = (event: Event) => dodgeWrong(btn, def, event);
+  btn.addEventListener("pointerenter", (event) => {
+    if (finePointer.matches) dodge(event);
+  });
+  btn.addEventListener("pointerdown", (event) => {
+    try { btn.setPointerCapture(event.pointerId); } catch { /* fine */ }
+    dodge(event);
+  });
+  btn.addEventListener("click", (event) => dodge(event));
+  btn.addEventListener("keydown", (event) => {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      dodge(event);
+    }
+  });
+}
+
 function bindButton(btn: HTMLButtonElement, def: QuestionButton, question: Question): void {
+  if (def.role !== "correct") {
+    bindWrongButton(btn, def);
+    return;
+  }
   btn.addEventListener("pointerenter", () => {
     if (!finePointer.matches || locked) return;
-    if (def.role === "correct") triggerShimmer();
+    triggerShimmer();
     void runPhase(def.on_hover, def, btn, question, "hover");
   });
 
@@ -775,101 +805,42 @@ async function runPhase(
   });
 }
 
-function bumpCorrectButtons(): void {
-  currentButtons.forEach((btn) => {
-    if (btn.dataset.role !== "correct") return;
-    btn.classList.add("answer--glow");
-    gsap.fromTo(
-      btn,
-      { scale: 1 },
-      { scale: motionReduced() ? 1 : 1.04, duration: 0.2, yoyo: true, repeat: 1, ease: "sine.inOut" }
-    );
-    window.setTimeout(() => btn.classList.remove("answer--glow"), 900);
-  });
-}
-
-async function wrongFeedback(_def: QuestionButton, btn: HTMLButtonElement, question: Question): Promise<void> {
-  showWhisper(pickWhisper(question));
-  bumpCorrectButtons();
-  addClawMark(btn);
-  bumpCoin();
-}
-
 async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Question): Promise<void> {
-  if (debugEnabled) console.info("[activate]", def.label, siteState, ended, activating, wrongBusy, btn.dataset.role);
+  if (debugEnabled) console.info("[activate]", def.label, siteState, ended, activating, btn.dataset.role);
+  if (btn.dataset.role !== "correct") return;
   if (siteState !== "question_active" || ended || activating) return;
-  if (wrongBusy && btn.dataset.role !== "correct") return;
   if (btn.dataset.state === "gone") return;
-  const correctTap = btn.dataset.role === "correct";
-  if (correctTap) activating = true;
-  else wrongBusy = true;
+  activating = true;
   updateDebug();
   const watchdog = window.setTimeout(() => {
-    if (!activating && !wrongBusy) return;
+    if (!activating) return;
     activating = false;
-    wrongBusy = false;
     console.warn("[activation] timed out");
   }, 2600);
   try {
     bumpCoin();
-    if (btn.dataset.role === "correct") triggerShimmer();
-    if (btn.dataset.role !== "correct" && def.personality) {
-      const other = currentButtons.find((candidate) => candidate.dataset.role === "correct");
-      await Promise.race([
-        runPersonality(def.personality, {
-          btn,
-          other,
-          reduced: motionReduced(),
-          whisper: showWhisper,
-        }),
-        timer(1200),
-      ]);
-      bumpCorrectButtons();
-      addClawMark(btn);
-      updateDebug();
-      return;
-    }
-    const behavior = runBehavior(def.on_click, {
-      btn,
-      def,
-      buttons: currentButtons,
-      question,
-      reduced: motionReduced(),
-      phase: "click",
-      whisper: showWhisper,
-      });
-    const timeout = btn.dataset.role === "correct" ? 1600 : 2200;
-    let result: string = await Promise.race([behavior, timer(timeout).then(() => "timeout")]);
-    if (debugEnabled) console.info("[behavior result]", def.on_click, result);
-    if (result === "timeout") {
-      console.warn("[behavior] timed out", def.on_click);
-      result = btn.dataset.role === "correct" ? "advance" : "pass";
-    }
-
-    if (result === "consume") {
-      if (btn.dataset.role !== "correct") await wrongFeedback(def, btn, question);
-      return;
-    }
-
-    const isCorrect = btn.dataset.role === "correct";
-    if (result === "advance" || isCorrect) {
-      setState("transitioning", 2800, () => forceRevealQuestion());
-      if (isCorrect) {
-        btn.classList.add("answer--glow");
-        btn.dataset.ready = "true";
-        await Promise.race([pulse(btn, motionReduced()), timer(700)]);
-      }
-      const target = def.next ?? nextQuestionId(question.id);
-      await timer(motionReduced() ? 30 : 140);
-      await advance(target, question);
-      return;
-    }
-
-    await wrongFeedback(def, btn, question);
+    triggerShimmer();
+    await Promise.race([
+      runBehavior(def.on_click, {
+        btn,
+        def,
+        buttons: currentButtons,
+        question,
+        reduced: motionReduced(),
+        phase: "click",
+        whisper: showWhisper,
+      }),
+      timer(1600),
+    ]);
+    setState("transitioning", 2800, () => forceRevealQuestion());
+    btn.classList.add("answer--glow");
+    btn.dataset.ready = "true";
+    const target = def.next ?? nextQuestionId(question.id);
+    await timer(motionReduced() ? 30 : 160);
+    await advance(target, question);
   } finally {
     clearTimeout(watchdog);
-    if (correctTap) activating = false;
-    else wrongBusy = false;
+    activating = false;
     updateDebug();
   }
 }

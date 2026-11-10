@@ -75,11 +75,11 @@ The session planner weights variants by `1 / (1 + times_seen)`, stores counts in
 
 ## Wrong-button personalities
 
-Wrong buttons do not cycle a generic label. Give each one a `personality`. The engine assigns unique personalities across the session and escalates on each tap.
+Wrong buttons are escape targets. Hovering one on desktop or touching one on a phone makes it dodge away, its label never changes, and a click or keyboard activation is ignored. Give each wrong button a `personality` for its idle motion, taunt microcopy, and character reaction.
 
 Personalities: `scaredy`, `sleepy`, `showoff`, `clumsy`, `sassy`, `confused`, `hungry`, `shy`, `hyper`, `proud`, `sneaky`, `peekaboo`.
 
-Each personality owns its idle motion, three escalating reactions, label set, microcopy, and a small character reaction. The correct button always advances on the first tap, even while a wrong button is still animating.
+The engine assigns unique personalities across the session. The correct button always advances on the first tap. No wrong button can ever be activated into the correct role.
 
 ## Minigames
 
@@ -97,7 +97,9 @@ minigames:
     status: "ready"
 ```
 
-Ready games include scratch card, camera selfie, catch, drag, tilt pour, hold to fill, sort bins, pet the character, wipe fog, memory match, choose an item, and pull the thread. The remaining roster entries are visible in settings as coming soon.
+All eighteen registered games are playable: scratch card, catch the camera, catch the little heart, drag to target, tilt pour, hold to fill, sort bins, pet the character, wipe fog, memory match, choose an item, pull the thread, blow the cloud away, tap on the beat, trace the line, shake to reveal, feed the cat, and spin the wheel.
+
+The planner never chooses the same minigame twice in one session. If a pool is exhausted it picks another unused game, then falls back to a tap, never a repeat.
 
 The planner intersects the variant pool with enabled games, device capabilities, permissions, and theme affinity. If a game cannot run it falls back along `fallback_game_id`, then to a built-in tap, so a question never stalls. The settings sheet lists every game with device icons and a switch. Disabling a game removes it from the session pool.
 
@@ -107,7 +109,7 @@ Scratch cards require 85 percent cleared, show a progress arc, and pulse gently 
 
 Camera, microphone, and motion games show a designed pre-permission card before the browser prompt. Saying no falls back to another game with a short note in the site voice. Camera photos stay in memory unless `keep me` is tapped, where they are stored as a local data URL only. Nothing is uploaded, and delete removes the stored copy.
 
-The camera game is loaded lazily only when chosen. It shows a front-camera polaroid, a countdown, a still, a customizable note, keep me, and delete.
+The camera game is loaded lazily only when chosen. The custom permission card always comes first with a clear camera-permission label. After permission is granted, the game is a small drifting camera target. There is no countdown. The still is captured only when she catches the camera icon, then shown back to her with a teasing note, keep me, and delete. The camera preview stays hidden. Nothing is saved until she taps keep me.
 
 ## Keep me and print
 

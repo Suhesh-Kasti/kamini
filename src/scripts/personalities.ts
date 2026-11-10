@@ -309,6 +309,15 @@ const PERSONALITIES: Record<PersonalityId, Personality> = {
   },
 };
 
+export function personalityTaunt(id: PersonalityId, btn: HTMLButtonElement, whisper: (text: string) => void): void {
+  const personality = PERSONALITIES[id] ?? PERSONALITIES.scaredy;
+  const previous = Number(btn.dataset.personalityStep ?? 0);
+  const step = previous + 1;
+  btn.dataset.personalityStep = String(step);
+  whisper(personality.lines[Math.min(step - 1, personality.lines.length - 1)]);
+  reaction(personality.character, btn);
+}
+
 export async function runPersonality(
   id: PersonalityId,
   ctx: PersonalityContext

@@ -58,62 +58,32 @@
   50% { transform: scale(1.015); }
 }
 
-/* Camera ---------------------------------------------------------------- */
+/* Camera: catch the little camera --------------------------------------- */
 
 .mg-camera {
   width: 100%;
   align-items: center;
-}
-
-.mg-camera__frame {
-  position: relative;
-  width: min(78vw, 286px);
-  aspect-ratio: 3 / 4;
-  overflow: hidden;
-  border: 7px solid color-mix(in srgb, var(--c-paper) 86%, white);
-  border-bottom-width: 30px;
-  border-radius: 8px 8px 3px 3px;
-  background: color-mix(in srgb, var(--c-ink) 8%, var(--c-paper));
-  box-shadow: 0 22px 42px -26px color-mix(in srgb, var(--c-ink) 62%, transparent);
-  transform: rotate(-1.2deg);
+  gap: 0.55rem;
 }
 
 .mg-camera__video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
+  display: none;
 }
 
-.mg-camera__count {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fffaf4;
-  font-family: var(--font-display);
-  font-size: clamp(3.4rem, 16vw, 5rem);
-  font-weight: var(--font-display-weight);
-  text-shadow: 0 2px 18px rgba(20, 10, 14, 0.4);
-  pointer-events: none;
+.mg-camera__catch {
+  width: min(100%, 320px);
+  height: 232px;
 }
 
-.mg-camera__count.is-ticking {
-  animation: mg-camera-count 0.55s var(--ease-breath) both;
+.mg-camera__target {
+  background: var(--c-paper);
+  color: var(--c-primary);
 }
 
-@keyframes mg-camera-count {
-  0% { opacity: 0; transform: scale(0.7); }
-  35% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0.6; transform: scale(0.96); }
-}
-
-.mg-camera__flash {
-  position: absolute;
-  inset: 0;
-  background: #fff9ee;
-  opacity: 0;
-  pointer-events: none;
+.mg-camera__catch.is-captured {
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--c-primary) 18%, transparent), transparent 65%),
+    color-mix(in srgb, var(--c-paper) 48%, transparent);
 }
 
 .mg-camera__privacy,
@@ -126,6 +96,12 @@
   text-align: center;
 }
 
+.mg-camera__away {
+  min-height: 38px;
+  font-size: 0.72rem;
+  opacity: 0.78;
+}
+
 .mg-camera__result {
   width: 100%;
   display: grid;
@@ -134,10 +110,6 @@
 }
 
 .mg-camera__result[hidden] {
-  display: none;
-}
-
-.mg-camera__frame.is-captured {
   display: none;
 }
 
@@ -719,6 +691,16 @@
   font-size: 1.3rem;
 }
 
+.permission-card__kicker {
+  display: block;
+  margin: 0 0 0.35rem;
+  font-family: var(--font-body);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-primary) 82%, var(--c-ink));
+}
+
 .permission-card h3 {
   margin: 0 0 0.5rem;
   font-family: var(--font-display);
@@ -959,7 +941,6 @@
 
 @media (max-width: 520px) {
   .mg-memory__grid { gap: 0.4rem; }
-  .mg-camera__frame { width: min(74vw, 252px); }
   .mg-wipe__card { width: min(74vw, 258px); }
   .mg-hold__pad { width: 136px; height: 136px; }
   .game-list { max-height: 38vh; }
@@ -967,7 +948,6 @@
 
 
 html[data-motion="soft"] .answer__label,
-html[data-motion="soft"] .mg-camera__count,
 html[data-motion="soft"] .mg-pet__zzz,
 html[data-motion="soft"] .scratch-card.is-asking,
 html[data-motion="soft"] .mg-scratch__progress,
@@ -976,4 +956,485 @@ html[data-motion="soft"] .theme-veil__critter,
 html[data-motion="soft"] .drag-basket.is-fed {
   animation: none !important;
   transition: none !important;
+}
+
+/* 13. Blow the cloud away ---------------------------------------------- */
+
+.mg-blow__stage {
+  position: relative;
+  width: min(100%, 320px);
+  height: 210px;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px dashed color-mix(in srgb, var(--c-ink) 13%, transparent);
+  background:
+    radial-gradient(circle at 50% 22%, color-mix(in srgb, var(--c-accent) 20%, transparent), transparent 58%),
+    color-mix(in srgb, var(--c-paper) 58%, transparent);
+}
+
+.mg-blow__cloud {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 190px;
+  height: 110px;
+  transform: translate(-50%, -50%);
+}
+
+.mg-blow__puff {
+  position: absolute;
+  width: 64px;
+  height: 56px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-paper) 90%, white);
+  box-shadow: 0 10px 22px -16px color-mix(in srgb, var(--c-ink) 50%, transparent);
+}
+
+.mg-blow__puff:nth-child(1) { left: 0; top: 34px; }
+.mg-blow__puff:nth-child(2) { left: 24px; top: 8px; width: 72px; height: 64px; }
+.mg-blow__puff:nth-child(3) { left: 58px; top: 0; width: 82px; height: 72px; }
+.mg-blow__puff:nth-child(4) { left: 96px; top: 6px; width: 70px; height: 62px; }
+.mg-blow__puff:nth-child(5) { left: 126px; top: 26px; }
+.mg-blow__puff:nth-child(6) { left: 34px; top: 44px; width: 48px; height: 42px; }
+.mg-blow__puff:nth-child(7) { left: 106px; top: 44px; width: 52px; height: 44px; }
+.mg-blow__puff:nth-child(8) { left: 72px; top: 22px; width: 52px; height: 48px; opacity: 0.6; }
+.mg-blow__puff:nth-child(9) { left: 146px; top: 8px; width: 38px; height: 34px; opacity: 0.5; }
+.mg-blow__puff:nth-child(10) { left: 10px; top: 6px; width: 34px; height: 30px; opacity: 0.45; }
+
+.mg-blow__meter,
+.mg-shake__meter {
+  width: min(100%, 280px);
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-ink) 12%, transparent);
+}
+
+.mg-blow__fill,
+.mg-shake__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c-primary);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.mg-blow__skip,
+.mg-shake__tap {
+  min-height: 38px;
+  font-size: 0.74rem;
+}
+
+/* 14. Tap on the beat --------------------------------------------------- */
+
+.mg-rhythm__stage {
+  position: relative;
+  width: min(100%, 260px);
+  height: 170px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--c-primary) 16%, transparent), transparent 62%),
+    color-mix(in srgb, var(--c-paper) 52%, transparent);
+}
+
+.mg-rhythm__ring {
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  border: 2px solid color-mix(in srgb, var(--c-primary) 65%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 9px color-mix(in srgb, var(--c-primary) 9%, transparent);
+}
+
+.mg-rhythm__cat {
+  position: absolute;
+  bottom: 12px;
+  font-size: 1.4rem;
+  color: color-mix(in srgb, var(--c-primary) 65%, var(--c-ink));
+  transition: transform 180ms var(--ease-breath), color 180ms var(--ease-breath);
+}
+
+.mg-rhythm__cat.is-happy {
+  color: var(--c-primary);
+  transform: scale(1.18);
+}
+
+.mg-rhythm__cat.is-judging {
+  animation: mg-rhythm-judge 0.45s ease-in-out;
+}
+
+@keyframes mg-rhythm-judge {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-7deg); }
+  70% { transform: rotate(7deg); }
+}
+
+.mg-rhythm__pips {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.mg-rhythm__pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-ink) 16%, transparent);
+  transition: background 180ms var(--ease-breath), transform 180ms var(--ease-breath);
+}
+
+.mg-rhythm__pip.is-hit {
+  background: var(--c-primary);
+  transform: scale(1.22);
+}
+
+.mg-rhythm__tap {
+  width: 92px;
+  height: 92px;
+  border: 1px solid color-mix(in srgb, var(--c-primary) 50%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-paper) 82%, transparent);
+  color: var(--c-primary);
+  font-family: var(--font-hand);
+  font-size: 0.95rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mg-rhythm__tap:active {
+  transform: scale(0.96);
+}
+
+/* 15. Trace the line ---------------------------------------------------- */
+
+.mg-trace__holder {
+  width: min(100%, 330px);
+  aspect-ratio: 300 / 190;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--c-ink) 12%, transparent);
+  background: color-mix(in srgb, var(--c-paper) 58%, transparent);
+  touch-action: none;
+}
+
+.mg-trace__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  overflow: visible;
+}
+
+.mg-trace__track,
+.mg-trace__fill {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.mg-trace__track {
+  stroke: color-mix(in srgb, var(--c-ink) 22%, transparent);
+  stroke-dasharray: 2 11;
+}
+
+.mg-trace__fill {
+  stroke: var(--c-primary);
+  transition: stroke-dashoffset 80ms linear;
+}
+
+.mg-trace__thumb {
+  fill: var(--c-paper);
+  stroke: var(--c-primary);
+  stroke-width: 3;
+  filter: drop-shadow(0 3px 4px color-mix(in srgb, var(--c-ink) 22%, transparent));
+}
+
+.mg-trace__holder.is-done .mg-trace__fill {
+  stroke: var(--c-accent);
+}
+
+.mg-trace__skip {
+  min-height: 38px;
+  font-size: 0.74rem;
+}
+
+/* 16. Shake to reveal --------------------------------------------------- */
+
+.mg-shake__stage {
+  position: relative;
+  width: min(100%, 260px);
+  height: 205px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--c-accent) 24%, transparent), transparent 68%);
+}
+
+.mg-shake__box {
+  position: relative;
+  width: 142px;
+  height: 122px;
+  transform-origin: 50% 80%;
+}
+
+.mg-shake__body {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 0;
+  height: 92px;
+  border: 2px solid color-mix(in srgb, var(--c-ink) 24%, transparent);
+  border-radius: 10px;
+  background: var(--c-primary);
+  box-shadow: 0 18px 28px -22px color-mix(in srgb, var(--c-ink) 55%, transparent);
+}
+
+.mg-shake__lid {
+  position: absolute;
+  left: 0;
+  top: 18px;
+  width: 142px;
+  height: 30px;
+  border: 2px solid color-mix(in srgb, var(--c-ink) 24%, transparent);
+  border-radius: 8px;
+  background: var(--c-accent);
+}
+
+.mg-shake__note {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  width: 116px;
+  margin: 0 0 0 -58px;
+  padding: 0.5rem;
+  border-radius: 3px;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-family: var(--font-hand);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: center;
+  transform: translateY(14px);
+  opacity: 0;
+  box-shadow: 0 8px 18px -14px color-mix(in srgb, var(--c-ink) 45%, transparent);
+}
+
+/* 17. Feed the cat ------------------------------------------------------ */
+
+.mg-feed__stage {
+  position: relative;
+  width: min(100%, 330px);
+  min-height: 250px;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--c-accent) 20%, transparent), transparent 62%),
+    color-mix(in srgb, var(--c-paper) 52%, transparent);
+}
+
+.mg-feed__cat {
+  position: relative;
+  font-size: 4.6rem;
+  color: color-mix(in srgb, var(--c-primary) 68%, var(--c-ink));
+  transform-origin: 50% 90%;
+  transition: transform 220ms var(--ease-breath), color 220ms var(--ease-breath);
+}
+
+.mg-feed__cat.is-fed-1 { transform: scale(1.04) rotate(-2deg); }
+.mg-feed__cat.is-fed-2 { transform: scale(1.08) rotate(2deg); }
+.mg-feed__cat.is-fed-3 { transform: scale(1.12) rotate(-2deg); color: var(--c-primary); }
+.mg-feed__cat.is-full { transform: scale(1.14) rotate(0); color: var(--c-primary); }
+
+.mg-feed__mouth {
+  position: absolute;
+  left: 50%;
+  bottom: 28%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  color: var(--c-paper);
+}
+
+.mg-feed__bowl {
+  width: 112px;
+  height: 24px;
+  margin-top: -0.5rem;
+  border: 1px solid color-mix(in srgb, var(--c-ink) 22%, transparent);
+  border-radius: 3px 3px 50% 50%;
+  background: color-mix(in srgb, var(--c-ink) 12%, var(--c-paper));
+}
+
+.mg-feed__foods {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.mg-feed__food {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--c-ink) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-paper) 82%, transparent);
+  color: var(--c-ink);
+  font-family: var(--font-hand);
+  font-size: 0.72rem;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.mg-feed__food.is-used {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.mg-feed__hearts {
+  display: flex;
+  gap: 0.25rem;
+  min-height: 14px;
+}
+
+.mg-feed__heart {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-ink) 14%, transparent);
+}
+
+.mg-feed__heart.is-full {
+  background: var(--c-primary);
+}
+
+/* 18. Spin the little wheel --------------------------------------------- */
+
+.mg-wheel__stage {
+  position: relative;
+  width: min(88vw, 238px);
+  aspect-ratio: 1;
+}
+
+.mg-wheel__disc {
+  position: absolute;
+  inset: 7px;
+  border: 5px solid color-mix(in srgb, var(--c-paper) 85%, white);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--c-ink) 18%, transparent),
+    0 18px 32px -24px color-mix(in srgb, var(--c-ink) 50%, transparent);
+  will-change: transform;
+}
+
+.mg-wheel__label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: 0 0;
+  font-family: var(--font-hand);
+  font-size: 0.68rem;
+  line-height: 1;
+  color: var(--c-ink);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.mg-wheel__pointer {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 0;
+  height: 0;
+  margin-left: -8px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 14px solid var(--c-primary);
+  filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--c-ink) 25%, transparent));
+  z-index: 2;
+}
+
+.mg-wheel__hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border: 3px solid var(--c-paper);
+  border-radius: 50%;
+  background: var(--c-primary);
+  box-shadow: 0 3px 7px color-mix(in srgb, var(--c-ink) 25%, transparent);
+  z-index: 2;
+}
+
+.mg-wheel__result {
+  min-height: 1.3em;
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: 1.05rem;
+  color: var(--c-primary);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 300ms var(--ease-breath), transform 300ms var(--ease-breath);
+}
+
+.mg-wheel__result.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.mg-wheel__tap {
+  min-height: 40px;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 520px) {
+  .mg-blow__stage { height: 190px; }
+  .mg-rhythm__stage { height: 156px; }
+  .mg-feed__stage { min-height: 232px; }
+  .mg-wheel__stage { width: min(82vw, 218px); }
+}
+
+html[data-motion="soft"] .mg-rhythm__cat.is-judging,
+html[data-motion="soft"] .mg-trace__fill,
+html[data-motion="soft"] .mg-wheel__result {
+  animation: none !important;
+  transition: none !important;
+}
+
+.mg-sort__item.is-selected {
+  border-color: var(--c-primary);
+  background: color-mix(in srgb, var(--c-primary) 14%, var(--c-paper));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-accent) 16%, transparent);
+}
+
+.mg-bin__contents {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  max-width: 60%;
+}
+
+.mg-bin__chip {
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-primary) 16%, var(--c-paper));
+  color: var(--c-ink);
+  font-family: var(--font-body);
+  font-size: 0.58rem;
+  line-height: 1.2;
+}
+
+.mg-bin.is-fed .mg-bin__mouth {
+  background: var(--c-primary);
 }

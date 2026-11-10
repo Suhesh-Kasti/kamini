@@ -97,10 +97,29 @@ export function gameAvailable(
   return true;
 }
 
+function gameWeight(
+  id: string,
+  games: Map<string, MinigameConfig>,
+  options: PlanOptions
+): number {
+  if (id === "buttons") return 1.2;
+  const game = games.get(id);
+  if (!game) return 0.1;
+  let weight = 1;
+  if (game.required_theme_affinity?.includes(options.themeId)) weight += 1.4;
+  const touchFirst = isTouchFirst(options.caps);
+  if (touchFirst && game.device_support.some((support) => support === "touch" || support.startsWith("sensor") || support === "camera")) {
+    weight += 0.8;
+  }
+  if (!touchFirst && game.device_support.includes("mouse")) weight += 0.8;
+  return weight;
+}
+
 function pickGame(
   variant: QuestionVariant,
   games: Map<string, MinigameConfig>,
-  options: PlanOptions
+  options: PlanOptions,
+  usedGames: Set<string>
 ): string {
   const pool = variant.minigame_pool?.length
     ? variant.minigame_pool
@@ -109,28 +128,22 @@ function pickGame(
       : ["choose_item"];
   const candidates = pool.filter((id) => {
     if (id === "buttons") return Boolean(variant.buttons?.length);
+    if (usedGames.has(id)) return false;
     return gameAvailable(games.get(id), options);
   });
-  if (!candidates.length) {
-    if (variant.buttons?.length) return "buttons";
-    for (const fallback of ["choose_item", "hold_fill", "drag_to_target"]) {
-      if (gameAvailable(games.get(fallback), options)) return fallback;
-    }
-    return "tap_continue";
+  if (candidates.length) {
+    return weightedPick(candidates, (id) => gameWeight(id, games, options));
   }
-  const touchFirst = isTouchFirst(options.caps);
-  return weightedPick(candidates, (id) => {
-    if (id === "buttons") return 1.2;
-    const game = games.get(id);
-    if (!game) return 0.1;
-    let weight = 1;
-    if (game.required_theme_affinity?.includes(options.themeId)) weight += 1.4;
-    if (touchFirst && game.device_support.some((support) => support === "touch" || support.startsWith("sensor") || support === "camera")) {
-      weight += 0.8;
-    }
-    if (!touchFirst && game.device_support.includes("mouse")) weight += 0.8;
-    return weight;
-  });
+  if (variant.buttons?.length) return "buttons";
+  // The pool may be exhausted by earlier beats. Prefer any unused, playable
+  // game over showing the same one twice in a session.
+  const unused = Array.from(games.values()).filter(
+    (game) => !usedGames.has(game.id) && gameAvailable(game, options)
+  );
+  if (unused.length) {
+    return weightedPick(unused, (game) => gameWeight(game.id, games, options)).id;
+  }
+  return "tap_continue";
 }
 
 function assignPersonalities(buttons: QuestionButton[], used: Set<string>): QuestionButton[] {
@@ -160,6 +173,7 @@ export function buildPlan(
   );
   const planned: Record<string, PlannedQuestion> = {};
   const usedPersonalities = new Set<string>();
+  const usedGames = new Set<string>();
 
   for (const question of questions) {
     const variant = pickVariant(question, log);
@@ -167,7 +181,8 @@ export function buildPlan(
       log[question.id] = log[question.id] ?? {};
       log[question.id][variant.id] = (log[question.id][variant.id] ?? 0) + 1;
     }
-    const gameId = pickGame(variant, gameMap, options);
+    const gameId = pickGame(variant, gameMap, options, usedGames);
+    if (gameId !== "buttons" && gameId !== "tap_continue") usedGames.add(gameId);
     const buttons = gameId === "buttons" ? assignPersonalities(variant.buttons ?? [], usedPersonalities) : [];
     planned[question.id] = {
       questionId: question.id,

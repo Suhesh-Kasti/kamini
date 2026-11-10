@@ -33,6 +33,17 @@ export async function runBehavior(
   return "pass";
 }
 
+export function safeOffset(btn: HTMLButtonElement, maxX = 110, maxY = 70): { x: number; y: number } {
+  const rect = btn.getBoundingClientRect();
+  const pad = 14;
+  const lowX = Math.max(-maxX, pad - rect.left);
+  const highX = Math.min(maxX, window.innerWidth - pad - rect.right);
+  const lowY = Math.max(-maxY, pad - rect.top);
+  const highY = Math.min(maxY, window.innerHeight - pad - rect.bottom);
+  const pick = (low: number, high: number) => (high <= low ? 0 : low + Math.random() * (high - low));
+  return { x: pick(lowX, highX), y: pick(lowY, highY) };
+}
+
 export function resetHover(btn: HTMLButtonElement): void {
   if (btn.dataset.state === "asleep" || btn.dataset.state === "gone" || btn.dataset.state === "escaping") {
     return;

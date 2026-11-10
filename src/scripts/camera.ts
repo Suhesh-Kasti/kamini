@@ -20,21 +20,29 @@ function str(content: Record<string, unknown>, key: string, fallback = ""): stri
   return typeof value === "string" ? value : fallback;
 }
 
+/**
+ * Catch the camera. The custom permission card already ran. The still is
+ * captured only when she catches the target, never on a timer.
+ */
 export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () => void {
   if (!ctx.stream) throw new Error("No camera stream");
   let alive = true;
+  let capturing = false;
   let done = false;
   let captured = "";
+  let drift: gsap.core.Tween | null = null;
+
   const root = document.createElement("div");
-  root.className = "interaction mg-camera";
+  root.className = "interaction mg-camera mg-camera--catch";
   root.innerHTML = `
-    <p class="interaction__prompt">${str(ctx.content, "prompt", "a small countdown. be yourself.")}</p>
-    <div class="mg-camera__frame">
-      <video class="mg-camera__video" autoplay muted playsinline></video>
-      <span class="mg-camera__count">3</span>
-      <span class="mg-camera__flash" aria-hidden="true"></span>
+    <p class="interaction__prompt">${str(ctx.content, "prompt", "catch the little camera. it is quicker than you think.")}</p>
+    <div class="catch-stage mg-camera__catch">
+      <button type="button" class="catch-target mg-camera__target" aria-label="catch the camera and take a photo">
+        <i class="fa-solid fa-camera-retro" aria-hidden="true"></i>
+      </button>
     </div>
-    <p class="mg-camera__privacy">this stays on your phone, I promise.</p>
+    <p class="mg-camera__privacy">camera is on. nothing is saved until you catch it.</p>
+    <button type="button" class="soft-btn mg-camera__away">put the camera away</button>
     <div class="mg-camera__result" hidden>
       <div class="mg-camera__polaroid"><img data-selfie-img alt="the photo you just took"></div>
       <p class="mg-camera__note">${str(ctx.content, "note", "look at you.")}</p>
@@ -44,68 +52,86 @@ export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () 
         <button type="button" class="soft-btn mg-camera__delete" aria-label="delete this photo"><i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>delete</span></button>
       </div>
     </div>`;
+  const video = document.createElement("video");
+  video.className = "mg-camera__video";
+  video.autoplay = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.srcObject = ctx.stream;
+  root.append(video);
   container.append(root);
-  const video = root.querySelector<HTMLVideoElement>(".mg-camera__video");
-  const count = root.querySelector<HTMLElement>(".mg-camera__count");
-  const flash = root.querySelector<HTMLElement>(".mg-camera__flash");
+
+  const stage = root.querySelector<HTMLElement>(".mg-camera__catch");
+  const target = root.querySelector<HTMLButtonElement>(".mg-camera__target");
+  const away = root.querySelector<HTMLButtonElement>(".mg-camera__away");
   const result = root.querySelector<HTMLElement>(".mg-camera__result");
   const image = root.querySelector<HTMLImageElement>("[data-selfie-img]");
   const note = root.querySelector<HTMLElement>(".mg-camera__note");
-  if (!video || !count || !result || !image || !note) throw new Error("Camera UI failed");
-  video.srcObject = ctx.stream;
-  void video.play().catch(() => undefined);
+  if (!stage || !target || !away || !result || !image || !note) throw new Error("Camera UI failed");
 
-  const stopStream = () => {
-    ctx.stream?.getTracks().forEach((track) => track.stop());
+  const stopStream = () => ctx.stream?.getTracks().forEach((track) => track.stop());
+
+  const driftTarget = () => {
+    if (!alive || capturing) return;
+    const rect = stage.getBoundingClientRect();
+    const maxX = Math.max(12, (rect.width - 84) / 2);
+    const maxY = Math.max(10, (rect.height - 84) / 2);
+    drift = gsap.to(target, {
+      x: gsap.utils.random(-maxX, maxX),
+      y: gsap.utils.random(-maxY, maxY),
+      rotate: gsap.utils.random(-8, 8),
+      duration: ctx.reduced ? 2.6 : gsap.utils.random(1.2, 2.0),
+      ease: "sine.inOut",
+      onComplete: driftTarget,
+    });
   };
 
-  const capture = () => {
-    if (!alive || done) return;
+  const capture = async () => {
+    if (!alive || capturing || done) return;
+    capturing = true;
+    drift?.kill();
+    target.classList.add("is-caught");
+    stage.classList.add("is-caught");
+    stopStream();
+    try { await video.play(); } catch { /* the stream may already have a frame */ }
+    if (video.videoWidth === 0) {
+      await new Promise<void>((resolve) => {
+        const timer = window.setTimeout(resolve, 900);
+        video.addEventListener("loadedmetadata", () => {
+          window.clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+    }
     const width = video.videoWidth || 720;
     const height = video.videoHeight || 960;
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!context) {
+      capturing = false;
+      return;
+    }
     context.translate(width, 0);
     context.scale(-1, 1);
     context.drawImage(video, 0, 0, width, height);
     captured = canvas.toDataURL("image/jpeg", 0.86);
-    stopStream();
-    video.remove();
     image.src = captured;
     result.hidden = false;
-    root.querySelector<HTMLElement>(".mg-camera__frame")?.classList.add("is-captured");
+    root.querySelector<HTMLElement>(".mg-camera__privacy")?.setAttribute("hidden", "");
+    away.hidden = true;
+    target.disabled = true;
     ctx.cue("success");
     ctx.whisper(str(ctx.content, "note", "there you are."));
-    gsap.fromTo(result, { opacity: 0, y: 14, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.3)" });
-    gsap.fromTo(image, { scale: 1.04 }, { scale: 1, duration: 0.7, ease: "power2.out" });
-  };
-
-  const countdown = () => {
-    const steps = ctx.reduced ? ["1"] : ["3", "2", "1"];
-    let index = 0;
-    const next = () => {
-      if (!alive || done) return;
-      if (index >= steps.length) {
-        capture();
-        return;
-      }
-      count.textContent = steps[index];
-      count.classList.remove("is-ticking");
-      void count.offsetWidth;
-      count.classList.add("is-ticking");
-      gsap.fromTo(count, { scale: 1.35, opacity: 0.3 }, { scale: 1, opacity: 1, duration: 0.32, ease: "power2.out" });
-      index += 1;
-      window.setTimeout(next, ctx.reduced ? 350 : 850);
-    };
-    next();
+    gsap.fromTo(result, { opacity: 0, y: 14, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.3)" });
+    capturing = false;
   };
 
   const finish = (kept: boolean) => {
     if (done) return;
     done = true;
+    stopStream();
     if (kept && captured) {
       try { localStorage.setItem(SELFIE_KEY, captured); } catch { /* ignore */ }
       printKeepsake(captured, ctx.printCaption ?? str(ctx.content, "caption", "kept on {date}"), ctx.printSignature ?? "pocket mood");
@@ -119,20 +145,33 @@ export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () 
     window.setTimeout(() => { if (alive) ctx.complete(); }, 700);
   };
 
+  const putAway = () => {
+    if (done) return;
+    done = true;
+    drift?.kill();
+    stopStream();
+    ctx.whisper("camera away. no photo.");
+    gsap.to(root, { opacity: 0, duration: 0.3, ease: "power2.in" });
+    window.setTimeout(() => { if (alive) ctx.complete(); }, 350);
+  };
+
+  target.addEventListener("click", () => void capture());
+  target.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    void capture();
+  });
+  away.addEventListener("click", putAway);
   root.querySelector<HTMLButtonElement>(".mg-camera__keep")?.addEventListener("click", () => finish(true), { once: true });
   root.querySelector<HTMLButtonElement>(".mg-camera__delete")?.addEventListener("click", () => finish(false), { once: true });
 
   gsap.fromTo(root, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" });
-  gsap.set(flash, { opacity: 0 });
-  window.setTimeout(() => {
-    if (!alive) return;
-    countdown();
-    gsap.to(flash, { opacity: 0.85, duration: 0.06, delay: ctx.reduced ? 0.35 : 2.65, yoyo: true, repeat: 1 });
-  }, 450);
+  driftTarget();
 
   return () => {
     alive = false;
+    done = true;
+    drift?.kill();
     stopStream();
-    gsap.killTweensOf([root, count, flash, image]);
+    gsap.killTweensOf([root, target, result, image]);
   };
 }
