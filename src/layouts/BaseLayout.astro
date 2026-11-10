@@ -42,11 +42,15 @@ import "@fontsource/gochi-hand/latin-400.css";
 import "@fontsource/baloo-2/latin-400.css";
 import "@fontsource/baloo-2/latin-500.css";
 import "@fontsource/baloo-2/latin-600.css";
+import bricolageFont from "@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-400-normal.woff2?url";
+import caveatFont from "@fontsource/caveat/files/caveat-latin-400-normal.woff2?url";
+import balooFont from "@fontsource/baloo-2/files/baloo-2-latin-400-normal.woff2?url";
 import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 import "../styles/global.css";
 import "../styles/themes.css";
 import "../styles/endings.css";
+import "../styles/minigames.css";
 
 import { siteConfig, themeOrFallback } from "../lib/site-config";
 import MusicToggle from "../components/ui/MusicToggle.astro";
@@ -111,6 +115,9 @@ const vars = [
     <meta name="apple-mobile-web-app-title" content="a little something" />
     <meta name="format-detection" content="telephone=no" />
     <title>{title}</title>
+    <link rel="preload" as="font" type="font/woff2" href={bricolageFont} crossorigin="anonymous" />
+    <link rel="preload" as="font" type="font/woff2" href={caveatFont} crossorigin="anonymous" />
+    <link rel="preload" as="font" type="font/woff2" href={balooFont} crossorigin="anonymous" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />

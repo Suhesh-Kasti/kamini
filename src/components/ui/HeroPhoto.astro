@@ -13,4 +13,8 @@ const { class: className = "", pair = false } = Astro.props;
     {pair && <img data-hero-photo-img alt="" loading="lazy" decoding="async" />}
   </div>
   <figcaption data-hero-photo-caption></figcaption>
+  <button type="button" class="keep-photo" data-keep-photo aria-label="keep this photo">
+    <i class="fa-solid fa-bookmark" aria-hidden="true"></i>
+    <span>keep me</span>
+  </button>
 </figure>

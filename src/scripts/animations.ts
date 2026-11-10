@@ -170,6 +170,7 @@ export function questionEntrance(
   const answers = root.querySelectorAll<HTMLElement>(".answer, .interaction");
   const whisper = root.querySelector<HTMLElement>("[data-whisper]");
   const sheet = root.querySelector<HTMLElement>("[data-sheet]");
+  if (sheet) gsap.set(sheet, { clearProps: "transform,opacity", scaleY: 1, opacity: 1, visibility: "visible" });
   const motion = options.motion ?? "pillow";
   const ease = motionEase(motion);
   const timeline = gsap.timeline();

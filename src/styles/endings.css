@@ -1376,3 +1376,88 @@ html[data-theme="just_for_fun"] .hero-photo figcaption {
     bottom: 20%;
   }
 }
+
+/* Kept photo and print ------------------------------------------------ */
+
+.keep-photo {
+  position: absolute;
+  right: -0.2rem;
+  bottom: -0.7rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--c-ink) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-paper) 92%, white);
+  color: color-mix(in srgb, var(--c-ink) 78%, transparent);
+  font-family: var(--font-hand);
+  font-size: 0.78rem;
+  box-shadow: 0 10px 22px -18px color-mix(in srgb, var(--c-ink) 55%, transparent);
+  cursor: pointer;
+}
+
+.keep-photo i {
+  font-size: 0.72rem;
+}
+
+.keep-photo:hover {
+  color: var(--c-primary);
+}
+
+.print-keepsake {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 18mm;
+  }
+
+  body > *:not(.print-keepsake) {
+    display: none !important;
+  }
+
+  .print-keepsake {
+    display: flex;
+    min-height: 90vh;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #171214;
+    font-family: Georgia, serif;
+  }
+
+  .print-keepsake__frame {
+    display: grid;
+    justify-items: center;
+    gap: 0.8rem;
+    max-width: 150mm;
+    margin: 0;
+    padding: 12mm;
+    border: 1px solid rgba(20, 15, 18, 0.18);
+    border-radius: 3mm;
+  }
+
+  .print-keepsake__frame img {
+    display: block;
+    max-width: 100%;
+    max-height: 165mm;
+    object-fit: contain;
+  }
+
+  .print-keepsake__caption {
+    margin: 0;
+    font-family: var(--font-hand), cursive;
+    font-size: 15pt;
+    text-align: center;
+  }
+
+  .print-keepsake__signature {
+    font-family: var(--font-hand), cursive;
+    font-size: 11pt;
+    opacity: 0.65;
+  }
+}

@@ -1,58 +1,73 @@
 export type ButtonRole = "correct" | "wrong" | "trick" | "neutral";
 
+export type PersonalityId =
+  | "scaredy"
+  | "sleepy"
+  | "showoff"
+  | "clumsy"
+  | "sassy"
+  | "confused"
+  | "hungry"
+  | "shy"
+  | "hyper"
+  | "proud"
+  | "sneaky"
+  | "peekaboo";
+
 export interface QuestionButton {
   label: string;
   role: ButtonRole;
+  personality?: PersonalityId;
   on_hover?: string;
   on_tap?: string;
   on_click?: string;
-  labels_cycle?: string[];
   next?: string;
   note?: string;
 }
 
-export type QuestionType = "buttons" | "catch" | "drag" | "scratch";
+export type DeviceSupport =
+  | "touch"
+  | "mouse"
+  | "sensor_gyro"
+  | "sensor_accel"
+  | "camera"
+  | "mic"
+  | "keyboard";
 
-export interface CatchInteraction {
-  target: string;
-  hint: string;
-  next?: string;
+export type PermissionKind = "camera" | "mic" | "motion" | "none";
+
+export interface MinigameConfig {
+  id: string;
+  name: string;
+  description: string;
+  device_support: DeviceSupport[];
+  permissions: PermissionKind[];
+  fallback_game_id: string;
+  enabled_by_default: boolean;
+  status?: "ready" | "coming_soon";
+  required_theme_affinity?: string[];
+  content?: Record<string, unknown>;
 }
 
-export interface DragItem {
-  label: string;
-  correct?: boolean;
-  color?: string;
+export interface QuestionVariant {
+  id: string;
+  text?: string;
+  buttons?: QuestionButton[];
+  minigame_pool?: string[];
+  microcopy?: string[];
+  animation?: string;
+  music_override?: string | null;
 }
-
-export interface DragInteraction {
-  target: string;
-  items: DragItem[];
-  success?: string;
-  hint?: string;
-  next?: string;
-}
-
-export interface ScratchInteraction {
-  image?: string;
-  reveal: string;
-  caption?: string;
-  next?: string;
-}
-
-export type QuestionInteraction = CatchInteraction | DragInteraction | ScratchInteraction;
 
 export interface Question {
   id: string;
-  type?: QuestionType;
+  sequence_index?: number;
+  variants?: QuestionVariant[];
   eyebrow?: string;
-  text: string;
-  text_by_theme?: Record<string, string>;
-  theme_override?: string;
+  text?: string;
   music_override?: string | null;
   whispers?: string[];
   buttons?: QuestionButton[];
-  interaction?: QuestionInteraction;
   next?: string;
   transition_out?: string;
 }
@@ -82,6 +97,7 @@ export interface ThemeEnding {
   photo_indices?: number[];
   photo_caption?: string;
   note: string;
+  notes?: string[];
   signature: string;
   hand_letter: string;
 }
@@ -130,6 +146,8 @@ export interface GlobalConfig {
   max_pixel_ratio_mobile: number;
   preload_scene: boolean;
   secret_taps: number;
+  print_caption?: string;
+  print_signature?: string;
 }
 
 export interface EasterEggConfig {
@@ -153,12 +171,13 @@ export interface SiteConfig {
   global: GlobalConfig;
   intro: IntroConfig;
   whispers: string[];
-  behavior_lines?: Record<string, string[]>;
   themes: Record<string, Theme>;
   questions: Question[];
   ending: { replay_label: string; restart_label: string; skip_label: string };
   easter_egg: EasterEggConfig;
   install: InstallConfig;
+  minigames?: MinigameConfig[];
+  ending_notes?: Record<string, string[]>;
 }
 
 export type BehaviorResult = "consume" | "pass" | "advance";

@@ -230,7 +230,6 @@ html {
 
 .question .word {
   display: inline-block;
-  will-change: transform, opacity, filter;
 }
 
 .answers {
@@ -251,7 +250,6 @@ html {
   font-size: clamp(1rem, 4vw, 1.24rem);
   color: color-mix(in srgb, var(--c-ink) 84%, transparent);
   opacity: 0;
-  will-change: transform, opacity;
 }
 
 /* Base answer. Themes reshape it in themes.css. ------------------------- */
@@ -275,7 +273,6 @@ html {
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
-  will-change: transform;
   transform-origin: 50% 55%;
   transition: background 280ms var(--ease-breath), color 280ms var(--ease-breath), border-color 280ms var(--ease-breath), box-shadow 280ms var(--ease-breath);
 }
@@ -1539,59 +1536,6 @@ html[data-motion="soft"] .rain-drop {
   font-size: 0.76rem;
 }
 
-/* Playful button behaviors ---------------------------------------------- */
-
-.puff {
-  position: fixed;
-  z-index: 70;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--c-paper) 70%, transparent);
-  filter: blur(3px);
-  pointer-events: none;
-}
-
-.puff-dot {
-  position: fixed;
-  z-index: 71;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: var(--c-paper);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-ink) 8%, transparent);
-  pointer-events: none;
-}
-
-.answer.is-imitating .answer__label {
-  opacity: 0 !important;
-}
-
-.answer.is-imitating::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 41% 43%, var(--c-ink) 0 2.3px, transparent 2.9px),
-    radial-gradient(circle at 59% 43%, var(--c-ink) 0 2.3px, transparent 2.9px);
-  pointer-events: none;
-}
-
-.answer.is-imitating::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 54%;
-  width: 18px;
-  height: 9px;
-  transform: translateX(-50%);
-  border-bottom: 2px solid var(--c-ink);
-  border-radius: 0 0 50% 50%;
-  pointer-events: none;
-}
-
 @media (max-width: 520px) {
   .catch-stage {
     height: 190px;
@@ -1636,4 +1580,30 @@ html[data-motion="soft"] .drag-basket.is-fed {
   .drag-basket.is-fed {
     animation: none;
   }
+}
+
+
+/* Reveal discipline ---------------------------------------------------- */
+
+.will-reveal,
+.question .word,
+.answer,
+.interaction,
+.eyebrow,
+.whisper,
+.intro__line,
+.intro__sub,
+.note-text .word,
+.note-text .note-line > span,
+.note-sign {
+  opacity: 0;
+}
+
+.answer,
+.interaction {
+  transform: translateY(18px);
+}
+
+.question .word {
+  transform: translateY(18px);
 }

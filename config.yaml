@@ -11,6 +11,9 @@ active_theme: just_for_fun
 
 global:
   her_name: "Kamini"
+  # Print keepsake caption. {date} is replaced locally.
+  print_caption: "kept on {date}"
+  print_signature: "pocket mood"
   # Add a portrait here and it appears in the endings that opt in.
   # Relative paths live in public/, for example "images/portrait.webp".
   # A full https URL also works. Leave null for no photo.
@@ -64,15 +67,6 @@ whispers:
   - "this is not a negotiation"
   - "the delete button has filed a complaint"
 
-# The tiny lines a behavior whispers when it does its thing.
-behavior_lines:
-  swap_roles_correct: ["okay okay, you win", "fine, but the photos stay"]
-  swap_roles_wrong: ["hm. that is not what you meant", "nice try, evidence keeper"]
-  dodge_accept: ["fine. you win this one", "you are surprisingly fast"]
-  disabled_polite: ["not this one, troublemaker"]
-  escape: ["gone. it could not take the pressure"]
-  sneeze: ["achoo"]
-  sleepy: ["it fell asleep. let it rest"]
 
 # ================================================================
 # THEMES
@@ -328,145 +322,604 @@ themes:
 # All flow lives here. Roles and behaviors are in src/scripts.
 # transition_out: "theme" uses the active theme's motion language.
 # ================================================================
+# Core game registry. Ready games are selectable by the session planner.
+# Coming soon games are visible in settings but never chosen.
+minigames:
+- id: scratch_card
+  name: scratch the card
+  description: rub the soft cover until the picture underneath peeks through.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: scratch until the picture opens.
+    image: images/portrait-02.webp
+    reveal: the laughing one. you hate it. I know.
+    caption: lock screen. no regrets.
+- id: camera_selfie
+  name: the little selfie
+  description: a soft countdown, a still, and a note. stays on this device.
+  device_support:
+  - camera
+  - touch
+  - mouse
+  permissions:
+  - camera
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    title: let me see the face I am trying to make smile
+    body: This stays on your phone. Nothing is uploaded. This is just for you and me.
+    note: look at you, being all pretty while I am being sneaky.
+    caption: kept on {date}
+- id: catch_object
+  name: catch the little thing
+  description: a tiny camera drifts and dodges. catch it.
+  device_support:
+  - touch
+  - mouse
+  - sensor_gyro
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    target: the little camera
+    hint: caught it. it is both. obviously.
+- id: drag_to_target
+  name: drag it home
+  description: drag the right little thing into the basket.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    target: the basket
+    items:
+    - label: dusty rose
+      color: '#c98a92'
+    - label: warm sage
+      color: '#9aa37f'
+      correct: true
+    - label: butter cream
+      color: '#e8d6a3'
+    success: warm sage. good taste.
+    hint: the warm one. the one that matches your patience.
+- id: tilt_pour
+  name: tilt to pour
+  description: tilt the phone, or steer with the mouse, and pour the sparks home.
+  device_support:
+  - sensor_gyro
+  - touch
+  - mouse
+  permissions:
+  - motion
+  fallback_game_id: drag_to_target
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: tilt until the basket is full.
+- id: hold_fill
+  name: hold to fill
+  description: press and hold until the little heart is full. let go early and it deflates.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: hold the heart until it is full.
+    label: hold
+- id: sort_bins
+  name: sort the little things
+  description: drag each thing into the bin that feels right.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: sort them. no wrong answers, only brave ones.
+    bins:
+    - 'yes'
+    - 'no'
+    items:
+    - label: the park one
+      bin: 'yes'
+    - label: the laughing one
+      bin: 'yes'
+    - label: the delete button
+      bin: 'no'
+- id: pet_character
+  name: pet the sleepy cat
+  description: swipe gently over the cat until it stretches awake.
+  device_support:
+  - touch
+  - mouse
+  - sensor_accel
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: the cat is sleeping on the evidence. pet it awake.
+    character: cat
+- id: wipe_fog
+  name: wipe the fog
+  description: clear the misty glass to see what is hiding underneath.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: scratch_card
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: wipe the fog away.
+    reveal: the evidence is still here.
+    caption: through the mist.
+- id: memory_match
+  name: match the little pairs
+  description: turn over the cards and find the pairs.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: find the pairs. the cat is judging your memory.
+    icons:
+    - cat
+    - dog
+    - heart
+    - star
+- id: choose_item
+  name: pick one
+  description: a small table of nice things. pick the one that feels right.
+  device_support:
+  - touch
+  - mouse
+  - keyboard
+  permissions:
+  - none
+  fallback_game_id: hold_fill
+  enabled_by_default: true
+  status: ready
+  content:
+    prompt: pick one. I will pretend not to have a favourite.
+    items:
+    - dusty rose
+    - warm sage
+    - butter cream
+    correct: warm sage
+- id: pull_thread
+  name: pull the thread
+  description: pull the loose thread and let the ball unravel into a note.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: drag_to_target
+  enabled_by_default: true
+  status: ready
+  required_theme_affinity:
+  - cozy_crochet
+  content:
+    prompt: pull the thread.
+    reveal: the photos are still staying.
+- id: blow_reveal
+  name: blow the cloud away
+  description: a little breath clears the cloud. needs a microphone.
+  device_support:
+  - mic
+  - touch
+  - mouse
+  permissions:
+  - mic
+  fallback_game_id: wipe_fog
+  enabled_by_default: false
+  status: coming_soon
+- id: rhythm_tap
+  name: tap on the beat
+  description: tap along and fill the little bar.
+  device_support:
+  - touch
+  - mouse
+  - keyboard
+  permissions:
+  - none
+  fallback_game_id: hold_fill
+  enabled_by_default: false
+  status: coming_soon
+- id: trace_line
+  name: trace the line
+  description: follow the dotted path without lifting your finger.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: false
+  status: coming_soon
+- id: shake_reveal
+  name: shake it out
+  description: a gentle shake shakes the hidden thing loose.
+  device_support:
+  - sensor_accel
+  - touch
+  permissions:
+  - motion
+  fallback_game_id: choose_item
+  enabled_by_default: false
+  status: coming_soon
+- id: feed_cat
+  name: feed the cat
+  description: drag a little snack to the cat and watch its face change.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: pet_character
+  enabled_by_default: false
+  status: coming_soon
+- id: spin_wheel
+  name: spin the little wheel
+  description: a soft wheel, a little swipe, and wherever it lands.
+  device_support:
+  - touch
+  - mouse
+  permissions:
+  - none
+  fallback_game_id: choose_item
+  enabled_by_default: false
+  status: coming_soon
+
+# Fixed story spine. Each beat has three delivery variants.
 questions:
-
-  - id: "photo_delete"
-    eyebrow: "a small hostage situation"
-    text: "I found two photos of you that you have been trying to bury. I have them. Both."
-    whispers:
-      - "the delete button is already running"
-      - "I saw you try to hide the evidence"
-      - "you are doing the guilty face"
+- id: photo_delete
+  sequence_index: 1
+  eyebrow: a small hostage situation
+  whispers:
+  - the delete button has filed a complaint
+  - I saw that
+  - the evidence is staying
+  variants:
+  - id: soft
+    text: These photos are kind of silly. Want me to delete them?
     buttons:
-      - label: "delete them"
-        role: "wrong"
-        on_hover: "tickle"
-        on_tap: "tickle"
-        on_click: "teleport_puff"
-        labels_cycle: ["delete them", "okay just one", "fine, neither", "I give up", "you are impossible"]
-      - label: "I am not above bribery"
-        role: "correct"
-        on_hover: "grow"
-        on_click: "grow"
-        next: "which_one"
-    transition_out: "theme"
-
-  - id: "which_one"
-    eyebrow: "be honest"
-    text: "Which one do you hate more? The park one where you are looking back, or the laughing one with your eyes closed?"
-    whispers:
-      - "you hate both. I can tell."
-      - "the photos are not listening"
-      - "this is a safe space. not really."
-    type: "catch"
-    interaction:
-      target: "the little camera"
-      hint: "caught it. it is both. obviously."
-      next: "yarn_picker"
-    transition_out: "theme"
-
-  - id: "yarn_picker"
-    eyebrow: "a brief distraction"
-    text: "Fine. We can look at yarn for one minute. The photos are still staying, by the way."
-    whispers:
-      - "the yarn will not save you"
-      - "you are very good at changing the subject"
-      - "one minute. I am timing you."
-    type: "drag"
-    interaction:
-      target: "the basket"
-      items:
-        - label: "dusty rose"
-          color: "#c98a92"
-        - label: "warm sage"
-          color: "#9aa37f"
-          correct: true
-        - label: "butter cream"
-          color: "#e8d6a3"
-      success: "warm sage. good taste. the photos are still staying."
-      hint: "the warm one. the one that matches your patience."
-      next: "lock_screen"
-    transition_out: "theme"
-
-  - id: "lock_screen"
-    eyebrow: "full disclosure"
-    text: "The laughing one is my lock screen now. Every time I open my phone, you are mid-cackle."
-    whispers:
-      - "you are trying to calculate how to steal my phone"
-      - "the photo is load-bearing"
-      - "I can see you plotting"
-    type: "scratch"
-    interaction:
-      image: "images/portrait-02.webp"
-      reveal: "the laughing one. you hate it. I know."
-      caption: "lock screen. no regrets."
-      next: "wallpaper"
-    transition_out: "theme"
-
-  - id: "wallpaper"
-    eyebrow: "more evidence"
-    text: "The park one is my wallpaper. The one where you are mid-blink and slightly furious."
-    whispers:
-      - "you blinked. it is captured forever."
-      - "the printer is already warm"
-      - "you cannot delete a wallpaper with your mind"
+    - label: delete them
+      role: wrong
+      personality: scaredy
+    - label: I am not above bribery
+      role: correct
+      on_hover: grow
+      on_click: grow
+      next: which_one
+    minigame_pool:
+    - buttons
+    microcopy:
+    - the delete button is already running
+    - you are doing the guilty face
+    - I saw you try to hide the evidence
+    animation: pillow
+  - id: bold
+    text: I dare you to delete these photos. I double dare you.
+    minigame_pool:
+    - catch_object
+    - drag_to_target
+    microcopy:
+    - the evidence is faster than you
+    - caught it yet
+    - it is very attached to me
+    animation: snap
+  - id: tease
+    text: You would not delete these. You love them too much.
+    minigame_pool:
+    - scratch_card
+    - choose_item
+    microcopy:
+    - go on, scratch it
+    - you are not fooling anyone
+    - the photos are load-bearing
+    animation: drift
+- id: which_one
+  sequence_index: 2
+  eyebrow: be honest
+  whispers:
+  - you hate both. I can tell.
+  - the photos are not listening
+  - this is a safe space. not really.
+  variants:
+  - id: honest
+    text: Which one do you hate more? The park one where you are looking back, or the laughing one with your eyes closed?
     buttons:
-      - label: "delete it"
-        role: "wrong"
-        on_hover: "tickle"
-        on_tap: "tickle"
-        on_click: "peel"
-        labels_cycle: ["delete it", "I will delete it myself", "give me the phone", "I am not joking"]
-      - label: "I am telling everyone"
-        role: "wrong"
-        on_hover: "tickle"
-        on_tap: "tickle"
-        on_click: "imitate"
-      - label: "keep it"
-        role: "correct"
-        on_hover: "grow"
-        on_click: "grow"
-        next: "final_ask"
-    transition_out: "theme"
-
-  - id: "final_ask"
-    eyebrow: "last one, promise"
-    text: "Last one. I am printing both for the fridge. Any last words?"
-    text_by_theme:
-      angry_kitten: "You can be annoyed. The photos are still mine. Both of them."
-      sad_cloud: "You can be sad about it. I am still printing both."
-      sweet_ask: "I will trade you chocolate for the photos. No? Then I am printing both."
-      shopping_muse: "You cannot buy your way out of these photos."
-      save_the_coins: "These photos are an investment. I am keeping both."
-      cozy_crochet: "You cannot crochet over the evidence. I am printing both."
-      just_for_fun: "Last one. I am printing both for the fridge. Any last words?"
-    whispers:
-      - "the fridge has already picked a favourite"
-      - "you can hate them in high resolution"
-      - "this is the most fun I have had all week"
+    - label: the park one
+      role: wrong
+      personality: sassy
+    - label: the laughing one
+      role: wrong
+      personality: peekaboo
+    - label: both. unfortunately.
+      role: correct
+      on_hover: grow
+      on_click: grow
+      next: yarn_picker
+    minigame_pool:
+    - buttons
+    microcopy:
+    - you hate both. I can tell.
+    - the laughing one is right there
+    - no wrong answer, only evidence
+    animation: pillow
+  - id: investigator
+    text: Investigate the evidence. Which one is worse? Take your time. I have all day.
+    minigame_pool:
+    - choose_item
+    - sort_bins
+    microcopy:
+    - the park one has a strong case
+    - the laughing one is a repeat offender
+    - you are very thorough
+    animation: shutter
+  - id: evidence
+    text: One of these is your villain origin story. The other is mine. Which is which?
+    minigame_pool:
+    - memory_match
+    - catch_object
+    microcopy:
+    - the evidence is not going anywhere
+    - you are overthinking it
+    - both. it is both.
+    animation: stitch
+- id: yarn_picker
+  sequence_index: 3
+  eyebrow: a brief distraction
+  whispers:
+  - the yarn will not save you
+  - you are very good at changing the subject
+  - one minute. I am timing you.
+  variants:
+  - id: distraction
+    text: Fine. We can look at yarn for one minute. The photos are still staying, by the way.
+    minigame_pool:
+    - drag_to_target
+    - pull_thread
+    microcopy:
+    - the yarn will not save you
+    - you are very good at changing the subject
+    - one minute. I am timing you.
+    animation: stitch
+  - id: dare
+    text: Pick a yarn. Any yarn. It will not distract me from the photos.
+    minigame_pool:
+    - hold_fill
+    - tilt_pour
+    microcopy:
+    - the warm one. obviously
+    - you are stalling
+    - the photos are still here
+    animation: bounce
+  - id: pick
+    text: Choose a colour. I will pretend this is not a distraction.
+    minigame_pool:
+    - choose_item
+    - memory_match
+    microcopy:
+    - good taste. still the photos.
+    - you are very easy to distract
+    - one minute only
+    animation: pillow
+- id: lock_screen
+  sequence_index: 4
+  eyebrow: full disclosure
+  whispers:
+  - you are trying to calculate how to steal my phone
+  - the photo is load-bearing
+  - I can see you plotting
+  variants:
+  - id: current
+    text: The laughing one is my lock screen now. Every time I open my phone, you are mid-cackle.
+    minigame_pool:
+    - scratch_card
+    - wipe_fog
+    microcopy:
+    - you are trying to calculate how to steal my phone
+    - the photo is load-bearing
+    - I can see you plotting
+    animation: shimmer
+  - id: phone
+    text: My lock screen is the laughing one. You are one tap away from seeing it.
     buttons:
-      - label: "print them"
-        role: "correct"
-        on_hover: "grow"
-        on_click: "grow"
-        next: "ending"
-      - label: "both. framed."
-        role: "correct"
-        on_hover: "grow"
-        on_click: "grow"
-        next: "ending"
-      - label: "I will hide the printer"
-        role: "wrong"
-        on_hover: "tickle"
-        on_tap: "tickle"
-        on_click: "shrink_into_correct"
-        labels_cycle: ["I will hide the printer", "where is the printer", "I am unplugging it", "fine, print them"]
-    transition_out: "theme"
+    - label: change it
+      role: wrong
+      personality: clumsy
+    - label: I will steal your phone
+      role: wrong
+      personality: sneaky
+    - label: worth it
+      role: correct
+      on_hover: grow
+      on_click: grow
+      next: wallpaper
+    minigame_pool:
+    - buttons
+    microcopy:
+    - no no no
+    - I can see you plotting
+    - the photo is staying
+    animation: snap
+  - id: smirk
+    text: I want to see the face you make when you see my lock screen.
+    minigame_pool:
+    - catch_object
+    - camera_selfie
+    microcopy:
+    - there it is
+    - I saw that face
+    - worth it
+    animation: drift
+- id: wallpaper
+  sequence_index: 5
+  eyebrow: more evidence
+  whispers:
+  - you blinked. it is captured forever.
+  - the printer is already warm
+  - you cannot delete a wallpaper with your mind
+  variants:
+  - id: current
+    text: The park one is my wallpaper. The one where you are mid-blink and slightly furious.
+    buttons:
+    - label: delete it
+      role: wrong
+      personality: showoff
+    - label: I am telling everyone
+      role: wrong
+      personality: hungry
+    - label: keep it
+      role: correct
+      on_hover: grow
+      on_click: grow
+      next: final_ask
+    minigame_pool:
+    - buttons
+    microcopy:
+    - you blinked. it is captured forever.
+    - the printer is already warm
+    - you cannot delete a wallpaper with your mind
+    animation: snap
+  - id: fridge
+    text: The fridge already has a copy. The wallpaper is just for me.
+    minigame_pool:
+    - sort_bins
+    - memory_match
+    microcopy:
+    - the fridge is very proud
+    - you are outnumbered
+    - the photos are staying
+    animation: shutter
+  - id: blink
+    text: You cannot delete a wallpaper with your mind. I have tried.
+    minigame_pool:
+    - pet_character
+    - tilt_pour
+    microcopy:
+    - the cat agrees with me
+    - the printer is warm
+    - you are very cute when you lose
+    animation: pillow
+- id: final_ask
+  sequence_index: 6
+  eyebrow: last one, promise
+  whispers:
+  - the fridge has already picked a favourite
+  - you can hate them in high resolution
+  - this is the most fun I have had all week
+  variants:
+  - id: current
+    text: Last one. I am printing both for the fridge. Any last words?
+    buttons:
+    - label: print them
+      role: correct
+      on_hover: grow
+      on_click: grow
+      next: ending
+    - label: both. framed.
+      role: correct
+      on_hover: grow
+      on_click: grow
+      next: ending
+    - label: I will hide the printer
+      role: wrong
+      personality: proud
+    minigame_pool:
+    - buttons
+    microcopy:
+    - the fridge has already picked a favourite
+    - you can hate them in high resolution
+    - this is the most fun I have had all week
+    animation: bounce
+  - id: goodbye
+    text: Last one. I am printing both. You can hold the paper.
+    minigame_pool:
+    - hold_fill
+    - camera_selfie
+    - pull_thread
+    microcopy:
+    - hold it like you mean it
+    - the printer is warm
+    - one more memory
+    animation: drift
+  - id: wheel
+    text: Last one. Pick the ending you can live with. I am still printing both.
+    minigame_pool:
+    - choose_item
+    - memory_match
+    microcopy:
+    - the wheel is rigged. lovingly.
+    - you are very easy to tease
+    - both. obviously.
+    animation: stitch
 
 ending:
   replay_label: "one more time"
   restart_label: "start over"
   skip_label: "skip ahead"
+
+ending_notes:
+  angry_kitten:
+  - the photos are on the fridge. the cat has claimed them.
+  - you can be annoyed. the evidence is staying.
+  - I kept both. obviously.
+  sad_cloud:
+  - the rain stopped. the photos stayed.
+  - you can be sad about it. I am still printing both.
+  - a small cloud, a large amount of evidence.
+  sweet_ask:
+  - I will trade you chocolate for the photos. No? Then I am printing both.
+  - sweetheart, the evidence is staying.
+  - both. framed. with chocolate.
+  shopping_muse:
+  - you cannot buy your way out of these photos.
+  - the photos are the accessory.
+  - 'issue no. 02: both, forever.'
+  save_the_coins:
+  - these photos are an investment. I am keeping both.
+  - the little future includes the evidence.
+  - worth every coin.
+  cozy_crochet:
+  - you cannot crochet over the evidence. I am printing both.
+  - the thread leads back to the photos.
+  - both. stitched in.
+  just_for_fun:
+  - the fridge has already picked a favourite.
+  - you can hate them in high resolution.
+  - this is the most fun I have had all week.
+
 
 # ================================================================
 # THE TINY STAR

@@ -5,6 +5,8 @@ export interface LocalPrefs {
   reducedMotion?: boolean;
   installDismissed?: boolean;
   lastEndingTheme?: string;
+  minigames?: Record<string, boolean>;
+  permissions?: Partial<Record<"camera" | "mic" | "motion", "granted" | "denied">>;
 }
 
 const KEY = "pocket-mood.prefs.v1";

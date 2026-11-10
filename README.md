@@ -40,60 +40,84 @@ Each preset is a complete little world:
 
 No two presets share a type pairing or a scene.
 
-## Add a question
+## Quiz beats and variants
 
-Questions live in `config.yaml`.
+Questions are fixed story beats. Each beat has three or more delivery variants, so the wording, button labels, entrance motion, microcopy, and minigame pool can change between visits without moving the story.
 
 ```yaml
 questions:
   - id: "first_pick"
+    sequence_index: 1
     eyebrow: "a small choice"
-    text: "Pick the one you would keep."
-    whispers:
-      - "the wrong one is feeling shy"
-    buttons:
-      - label: "this one"
-        role: "wrong"
-        on_hover: "runaway"
-        on_tap: "runaway"
-        on_click: "swap_label"
-        labels_cycle: ["this one", "wait", "not this one", "okay, keep it"]
-      - label: "that one"
-        role: "correct"
-        on_hover: "grow"
-        next: "second_pick"
-    transition_out: "theme"
+    variants:
+      - id: "gentle"
+        text: "Pick the one you would keep."
+        buttons:
+          - label: "this one"
+            role: "wrong"
+            personality: "scaredy"
+          - label: "that one"
+            role: "correct"
+            on_hover: "grow"
+            on_click: "grow"
+            next: "second_pick"
+        minigame_pool: ["buttons"]
+        microcopy: ["the wrong one is feeling shy"]
+        animation: "pillow"
+      - id: "playful"
+        text: "Choose before I change my mind."
+        minigame_pool: ["catch_object", "drag_to_target"]
+        microcopy: ["it is faster than you", "caught it yet"]
+        animation: "snap"
 ```
 
-- `role`: `correct`, `wrong`, `trick`, or `neutral`.
-- `next`: another question id, or `"ending"`.
-- `theme_override`: swaps the whole preset for one question.
-- `music_override`: a path under `public/`, or `null`.
-- `text_by_theme`: optional wording per preset.
+The session planner weights variants by `1 / (1 + times_seen)`, stores counts in `localStorage`, and keeps a fixed beat order. The settings sheet has a shuffle action that clears the seen log and rerolls the current session. A tiny sparkle appears when unseen variants exist.
 
-Behavior names: `runaway`, `teleport_puff`, `peel`, `imitate`, `chase_correct`, `shrink_into_correct`, `tickle`, `flee_and_return`, `shrink`, `grow`, `swap_label`, `swap_roles`, `dodge_then_accept`, `ghost`, `morph`, `disabled_polite`, `multi_stage`, `escape_forever`, `mirror`, `peek_a_boo`, `jelly`, `sneeze`, `hide_behind`, `puddle`, `spin_away`, `unravel`, `chase`, `sleepy`, `pop_up`, `thread_reel`.
+## Wrong-button personalities
 
-### Other question types
+Wrong buttons do not cycle a generic label. Give each one a `personality`. The engine assigns unique personalities across the session and escalates on each tap.
 
-A question can use a physical interaction instead of buttons. Set `type` and add an `interaction` block.
+Personalities: `scaredy`, `sleepy`, `showoff`, `clumsy`, `sassy`, `confused`, `hungry`, `shy`, `hyper`, `proud`, `sneaky`, `peekaboo`.
+
+Each personality owns its idle motion, three escalating reactions, label set, microcopy, and a small character reaction. The correct button always advances on the first tap, even while a wrong button is still animating.
+
+## Minigames
+
+The `minigames` registry in `config.yaml` is the single roster. Every entry has a display name, description, supported devices, permissions, fallback, default state, optional theme affinity, and `status: ready` or `status: coming_soon`.
 
 ```yaml
-  - id: "find_it"
-    type: "catch"
-    text: "Catch the little camera before it gets away."
-    interaction:
-      target: "the little camera"
-      hint: "caught it. try the next one."
-      next: "second_pick"
+minigames:
+  - id: "scratch_card"
+    name: "scratch the card"
+    description: "rub the soft cover until the picture underneath peeks through."
+    device_support: ["touch", "mouse"]
+    permissions: ["none"]
+    fallback_game_id: "choose_item"
+    enabled_by_default: true
+    status: "ready"
 ```
 
-- `catch`: a small target drifts around the stage. Tap it to reveal the hint and continue.
-- `drag`: drag one of the labelled items into the target basket. Mark the right item with `correct: true`.
-- `scratch`: a canvas scratch card over a photo. Set `image`, `reveal`, and `caption`. A keyboard-friendly reveal button is always present.
+Ready games include scratch card, camera selfie, catch, drag, tilt pour, hold to fill, sort bins, pet the character, wipe fog, memory match, choose an item, and pull the thread. The remaining roster entries are visible in settings as coming soon.
 
-The starter sequence uses a different primary interaction and button behavior for each step. Keep that habit when adding questions.
+The planner intersects the variant pool with enabled games, device capabilities, permissions, and theme affinity. If a game cannot run it falls back along `fallback_game_id`, then to a built-in tap, so a question never stalls. The settings sheet lists every game with device icons and a switch. Disabling a game removes it from the session pool.
 
-Every behavior works with touch. On a phone, the tap behavior fires on pointer down, and pointer capture keeps activation reliable even after a button runs away.
+Scratch cards require 85 percent cleared, show a progress arc, and pulse gently after a pause below the threshold.
+
+## Permissions and camera
+
+Camera, microphone, and motion games show a designed pre-permission card before the browser prompt. Saying no falls back to another game with a short note in the site voice. Camera photos stay in memory unless `keep me` is tapped, where they are stored as a local data URL only. Nothing is uploaded, and delete removes the stored copy.
+
+The camera game is loaded lazily only when chosen. It shows a front-camera polaroid, a countdown, a still, a customizable note, keep me, and delete.
+
+## Keep me and print
+
+When a photo is shown, a small `keep me` pill opens a print layout containing only the photo, a handwritten caption, and a signature. Use `global.print_caption` and `global.print_signature` in YAML. The print stylesheet hides the rest of the site.
+
+## Debugging
+
+Open the site with `?debug=1` for an overlay showing state, resolved theme, question, variant, game, capabilities, permissions, activation locks, and scene. In debug mode the console logs theme reads and writes, activation gates, and recovery events. A `window.__pocketMood` helper exposes `state()`, `plan()`, `skip()`, `forceVariant()`, and `forceGame()` for local verification only.
+
+## Add a theme
 
 ## Add a theme
 
@@ -169,7 +193,7 @@ themes:
       photo_index: 0
 ```
 
-Themes without `photo_index` stay photo-free. Add a set of options under `global` and pick one by index. Use `photo_indices` for a small side-by-side strip. A single override path works too. See `public/images/README.md`.
+Themes without `photo_index` stay photo-free. Add a set of options under `global` and pick one by index. Use `photo_indices` for a small side-by-side strip. A single override path works too. Any displayed ending photo gets the keep me print control. See `public/images/README.md`.
 
 ## Music
 
@@ -191,7 +215,7 @@ The note and optional portrait are filled from YAML. Keep a fade-only path for r
 
 ## The tiny secret
 
-A small star in the top right corner. Tap it a few times to open a local settings sheet for theme, volume, and motion. It can replay the last ending or start over. Choices live in `localStorage` on the device and never leave it.
+A small star in the top right corner. Tap it a few times to open a local settings sheet for theme, volume, motion, minigame toggles, and a session shuffle. It can replay the last ending or start over. Choices live in `localStorage` on the device and never leave it.
 
 ## 3D and performance
 
@@ -221,8 +245,9 @@ src/
     ui/           note, letter, photo, music, secret panel, theme chrome
   layouts/        BaseLayout
   pages/          index
-  scripts/        app, behaviors, animations, endings, three-scene, audio, config, storage
-  styles/         global, themes, endings
+  scripts/        app, variants, minigames, personalities, device, camera, print,
+                  behaviors, animations, endings, three-scene, audio, config, storage
+  styles/         global, themes, endings, minigames
   lib/            types, build-time config loader
 config.yaml
 public/
@@ -236,3 +261,5 @@ public/
 Static output. Point Cloudflare Pages at the repo, build with `npm run build`, and publish `dist/`.
 
 Keep the site static and config-driven. No backend. No emojis in the interface. No em dashes in copy or code.
+
+A Cloudflare Worker could later assign variant combinations per session, so the experience varies even after clearing local storage. That is optional. The current build keeps variant selection, the seen log, permissions, and minigames entirely client-side for zero cold starts and no backend to maintain.

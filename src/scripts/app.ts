@@ -3,7 +3,6 @@ import { getConfig, themeFor } from "./config";
 import { readPrefs, patchPrefs, type LocalPrefs } from "./storage";
 import {
   EASE,
-  canBlur,
   initEases,
   prefersReducedMotion,
   pulse,
@@ -11,10 +10,15 @@ import {
   sceneExit,
   splitWords,
 } from "./animations";
-import { cycleLabel, resetHover, runBehavior, type BehaviorPhase } from "./behaviors";
+import { resetHover, runBehavior, type BehaviorPhase } from "./behaviors";
 import { playEnding } from "./endings";
 import { AudioPlayer } from "./audio";
-import { mountInteraction, type InteractionCleanup } from "./interactions";
+import { mountMinigame, verifyPermission, type MinigameCleanup } from "./minigames";
+import { runPersonality } from "./personalities";
+import { buildPlan, clearSeen, type PlannedQuestion, type SessionPlan } from "./variants";
+import { detectCaps, permissionFor } from "./device";
+import { printKeepsake } from "./print";
+import { preloadThemeFonts, revealText, waitForFonts } from "./reveal";
 import type { Question, QuestionButton, Theme } from "../lib/types";
 import type { ThreeSceneApi } from "./three-scene";
 
@@ -39,6 +43,8 @@ let preferredTheme =
 const audio = new AudioPlayer();
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 const reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+const caps = detectCaps();
+const gameRegistry = config.minigames ?? [];
 
 let sceneApi: ThreeSceneApi | null = null;
 let currentQuestion: Question = config.questions[0];
@@ -46,11 +52,19 @@ let currentThemeId = "";
 let currentTheme: Theme = config.themes[config.active_theme] ?? Object.values(config.themes)[0];
 let currentSceneKey = "";
 let currentButtons: HTMLButtonElement[] = [];
-let interactionCleanup: InteractionCleanup | null = null;
+let interactionCleanup: MinigameCleanup | null = null;
+let sessionPlan: SessionPlan | null = null;
+let currentBase: Question | null = null;
+let currentPlan: PlannedQuestion | null = null;
+let currentVariantId = "";
+let currentGameId = "";
+let lastEndingNote = "";
+let newHint: HTMLElement | null = null;
 let transitionToken = 0;
 let locked = false;
 let ended = false;
 let activating = false;
+let wrongBusy = false;
 type SiteState =
   | "loading"
   | "question_active"
@@ -94,11 +108,132 @@ function preferredThemeId(): string {
   return preferredTheme;
 }
 
-function effectiveThemeId(question: Question): string {
-  if (question.theme_override && config.themes[question.theme_override]) {
-    return question.theme_override;
-  }
+function effectiveThemeId(_question: Question): string {
+  // The theme store is the only source. Question-level overrides are ignored
+  // so a choice in settings can never be silently reset mid-story.
   return preferredTheme;
+}
+
+function minigameEnabled(id: string): boolean {
+  const game = gameRegistry.find((entry) => entry.id === id);
+  return prefs.minigames?.[id] ?? game?.enabled_by_default ?? false;
+}
+
+function buildSession(record = true): void {
+  sessionPlan = buildPlan(config.questions, gameRegistry, {
+    caps,
+    themeId: preferredTheme,
+    enabled: minigameEnabled,
+    permission: (kind) => prefs.permissions?.[kind],
+    record,
+  });
+  showNewHint(sessionPlan.newVariants);
+  updateDebug();
+}
+
+function planFor(question: Question): PlannedQuestion {
+  if (!sessionPlan) buildSession();
+  const planned = sessionPlan?.questions[question.id];
+  if (planned) return planned;
+  const fallbackButtons = (question.buttons ?? []).map((button) => ({ ...button }));
+  return {
+    questionId: question.id,
+    variantId: "fallback",
+    gameId: fallbackButtons.length ? "buttons" : "choose_item",
+    buttons: fallbackButtons,
+    text: question.text ?? "",
+    microcopy: question.whispers ?? [],
+  };
+}
+
+function effectiveQuestion(base: Question, plan: PlannedQuestion): Question {
+  return {
+    ...base,
+    text: plan.text || base.text || "",
+    whispers: plan.microcopy.length ? plan.microcopy : base.whispers,
+    buttons: plan.buttons.length ? plan.buttons : undefined,
+    music_override: plan.music ?? base.music_override,
+    variants: undefined,
+  };
+}
+
+function showNewHint(show: boolean): void {
+  if (!newHint) {
+    newHint = document.createElement("span");
+    newHint.className = "new-hint";
+    newHint.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>';
+    newHint.title = "something new today";
+    newHint.setAttribute("aria-label", "something new today");
+    document.body.append(newHint);
+  }
+  newHint.classList.toggle("is-visible", show);
+}
+
+function setupDebugApi(): void {
+  if (!debugEnabled) return;
+  (window as unknown as { __pocketMood?: unknown }).__pocketMood = {
+    state: () => ({
+      state: siteState,
+      theme: preferredTheme,
+      question: currentQuestion?.id ?? "",
+      variant: currentVariantId,
+      game: currentGameId,
+      panelOpen,
+      permissions: { ...(prefs.permissions ?? {}) },
+    }),
+    plan: () => sessionPlan,
+    skip: () => {
+      if (siteState !== "question_active") return false;
+      completeInteraction(currentQuestion, nextQuestionId(currentBase?.id ?? currentQuestion.id));
+      return true;
+    },
+    forceVariant: (variantId: string) => {
+      if (!currentBase || !sessionPlan) return false;
+      const variant = currentBase.variants?.find((entry) => entry.id === variantId);
+      if (!variant) return false;
+      const plan = sessionPlan.questions[currentBase.id];
+      if (!plan) return false;
+      const buttons = (variant.buttons ?? []).map((button) => ({ ...button }));
+      plan.variantId = variant.id;
+      plan.text = variant.text ?? currentBase.text ?? "";
+      plan.microcopy = variant.microcopy ?? currentBase.whispers ?? [];
+      plan.buttons = buttons;
+      plan.gameId = buttons.length ? "buttons" : variant.minigame_pool?.[0] ?? "choose_item";
+      currentPlan = plan;
+      currentVariantId = variant.id;
+      currentGameId = plan.gameId;
+      void renderQuestion(currentBase.id, true);
+      return true;
+    },
+    forceGame: (id: string) => {
+      if (!currentBase || !sessionPlan) return false;
+      const plan = sessionPlan.questions[currentBase.id];
+      if (!plan) return false;
+      const game = gameRegistry.find((entry) => entry.id === id);
+      if (id !== "buttons" && (!game || game.status !== "ready")) return false;
+      plan.gameId = id;
+      if (id !== "buttons") plan.buttons = [];
+      currentPlan = plan;
+      currentGameId = id;
+      if (siteState === "question_active") {
+        interactionCleanup?.();
+        interactionCleanup = null;
+        void renderQuestion(currentBase.id, true);
+      }
+      return true;
+    },
+  };
+}
+
+function showToast(text: string): void {
+  const toast = document.createElement("div");
+  toast.className = "minigame-toast";
+  toast.textContent = text;
+  document.body.append(toast);
+  gsap.fromTo(toast, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" });
+  window.setTimeout(() => {
+    gsap.to(toast, { opacity: 0, y: -6, duration: 0.3, ease: "power2.in", onComplete: () => toast.remove() });
+  }, 2600);
 }
 
 function ensureDebugOverlay(): void {
@@ -124,9 +259,12 @@ function updateDebug(): void {
   debugEl.textContent = `state ${siteState}
 theme ${preferredTheme} (${currentThemeId || "-"})
 question ${currentQuestion?.id ?? "-"}
+variant ${currentVariantId || "-"} game ${currentGameId || "-"}
+caps touch:${caps.touch} mouse:${caps.mouse} gyro:${caps.gyro} cam:${caps.camera} mic:${caps.mic}
+permissions ${Object.entries(prefs.permissions ?? {}).map(([key, value]) => `${key}:${value}`).join(" ") || "-"}
 pending ${pendingTheme ?? "-"}
 audio ${audioState}
-activating ${activating} locked ${locked}
+activating ${activating} wrongBusy ${wrongBusy} locked ${locked}
 scene ${currentSceneKey || "-"}`;
 }
 
@@ -152,6 +290,11 @@ function forceRevealQuestion(): void {
   endingScene.hidden = true;
   questionScene.hidden = false;
   gsap.set(questionScene, { clearProps: "filter,opacity" });
+  const sheet = questionScene.querySelector<HTMLElement>("[data-sheet]");
+  if (sheet) {
+    gsap.killTweensOf(sheet);
+    gsap.set(sheet, { clearProps: "transform,opacity", scaleY: 1, opacity: 1, visibility: "visible" });
+  }
   questionScene
     .querySelectorAll<HTMLElement>(".word, .answer, .interaction, .eyebrow, .whisper")
     .forEach((element) => gsap.set(element, { opacity: 1, filter: "none" }));
@@ -169,6 +312,24 @@ function recoverQuestion(token: number): void {
   if (token !== transitionToken) return;
   console.warn("[recovery] forcing the question visible");
   forceRevealQuestion();
+}
+
+function confirmQuestionVisible(token: number): void {
+  if (token !== transitionToken) return;
+  const sheet = questionScene.querySelector<HTMLElement>("[data-sheet]");
+  const textRect = questionEl.getBoundingClientRect();
+  const sheetStyle = sheet ? getComputedStyle(sheet) : null;
+  const textStyle = getComputedStyle(questionEl);
+  const visible =
+    textRect.width > 2 &&
+    textRect.height > 2 &&
+    Number.parseFloat(textStyle.opacity || "1") > 0.05 &&
+    (!sheetStyle ||
+      (sheetStyle.visibility !== "hidden" && Number.parseFloat(sheetStyle.opacity || "1") > 0.05));
+  if (!visible) {
+    console.warn("[mount] question was not visible; forcing reveal");
+    forceRevealQuestion();
+  }
 }
 
 function showThemeVeil(id: string): void {
@@ -201,17 +362,18 @@ async function switchTheme(id: string): Promise<void> {
   });
   showThemeVeil(id);
   applyTheme(id);
-  await timer(180);
-  gsap.killTweensOf(questionScene.querySelectorAll("*"));
-  gsap.killTweensOf(endingHost.querySelectorAll("*"));
   const showingEnding = !endingScene.hidden;
+  await waitForFonts(themeFor(config, id), 1400);
   if (showingEnding) {
+    gsap.killTweensOf(Array.from(endingHost.querySelectorAll("*")));
     void showEnding(id);
     await timer(520);
   } else {
-    await renderQuestion(currentQuestion.id, true);
-    await timer(220);
+    // The question and its minigame are theme-agnostic. Recolouring in place
+    // avoids remounting the scene, restarting a game, or replaying a reveal.
+    await timer(180);
   }
+  closePanel();
   hideThemeVeil();
   themeSwitching = false;
   if (siteState === "theme_switching") {
@@ -238,6 +400,7 @@ function applyMotionPreference(): void {
 
 function applyTheme(themeId: string): Theme {
   const theme = themeFor(config, themeId);
+  if (debugEnabled) console.info("[theme] read", themeId);
   const root = document.documentElement;
   const c = theme.colors;
   const t = theme.type;
@@ -362,6 +525,18 @@ function populateHeroPhoto(root: HTMLElement, isReduced: boolean): void {
       entries[0].caption ||
       config.global.her_photo_caption ||
       "";
+  }
+  const keep = figure.querySelector<HTMLButtonElement>("[data-keep-photo]");
+  if (keep) {
+    const first = entries[0];
+    keep.hidden = !first;
+    keep.onclick = first
+      ? () => printKeepsake(
+          resolvePhoto(first.src),
+          config.global.print_caption ?? "kept on {date}",
+          config.global.print_signature ?? "pocket mood"
+        )
+      : null;
   }
   figure.hidden = false;
   endingScene.classList.add("has-photo");
@@ -565,6 +740,10 @@ function createButton(def: QuestionButton, index: number, question: Question): H
   btn.dataset.index = String(index);
   btn.dataset.labelIndex = "0";
   if (question.id === "yarn_picker") btn.dataset.yarn = "true";
+  if (def.personality) {
+    btn.dataset.personality = def.personality;
+    btn.dataset.personalityStep = "0";
+  }
 
   const label = document.createElement("span");
   label.className = "answer__label";
@@ -593,7 +772,6 @@ async function runPhase(
     reduced: motionReduced(),
     phase,
     whisper: showWhisper,
-    lines: config.behavior_lines,
   });
 }
 
@@ -610,47 +788,47 @@ function bumpCorrectButtons(): void {
   });
 }
 
-async function wrongFeedback(def: QuestionButton, btn: HTMLButtonElement, question: Question): Promise<void> {
-  const recentlyCycled = performance.now() - Number(btn.dataset.lastCycle ?? 0) < 340;
-  if (def.labels_cycle && !recentlyCycled) cycleLabel(btn, def.labels_cycle);
-
+async function wrongFeedback(_def: QuestionButton, btn: HTMLButtonElement, question: Question): Promise<void> {
   showWhisper(pickWhisper(question));
   bumpCorrectButtons();
   addClawMark(btn);
   bumpCoin();
-
-  (question.buttons ?? []).forEach((buttonDef, index) => {
-    const candidate = currentButtons[index];
-    if (!candidate || candidate.dataset.role !== "correct") return;
-    if ([buttonDef.on_hover, buttonDef.on_tap, buttonDef.on_click].includes("pop_up")) {
-      void runBehavior("pop_up", {
-        btn: candidate,
-        def: buttonDef,
-        buttons: currentButtons,
-        question,
-        reduced: motionReduced(),
-        phase: "click",
-        whisper: showWhisper,
-        lines: config.behavior_lines,
-      });
-    }
-  });
 }
 
 async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Question): Promise<void> {
-  if (debugEnabled) console.info("[activate]", def.label, siteState, ended, activating, btn.dataset.role);
+  if (debugEnabled) console.info("[activate]", def.label, siteState, ended, activating, wrongBusy, btn.dataset.role);
   if (siteState !== "question_active" || ended || activating) return;
+  if (wrongBusy && btn.dataset.role !== "correct") return;
   if (btn.dataset.state === "gone") return;
-  activating = true;
+  const correctTap = btn.dataset.role === "correct";
+  if (correctTap) activating = true;
+  else wrongBusy = true;
   updateDebug();
   const watchdog = window.setTimeout(() => {
-    if (!activating) return;
+    if (!activating && !wrongBusy) return;
     activating = false;
+    wrongBusy = false;
     console.warn("[activation] timed out");
   }, 2600);
   try {
     bumpCoin();
     if (btn.dataset.role === "correct") triggerShimmer();
+    if (btn.dataset.role !== "correct" && def.personality) {
+      const other = currentButtons.find((candidate) => candidate.dataset.role === "correct");
+      await Promise.race([
+        runPersonality(def.personality, {
+          btn,
+          other,
+          reduced: motionReduced(),
+          whisper: showWhisper,
+        }),
+        timer(1200),
+      ]);
+      bumpCorrectButtons();
+      addClawMark(btn);
+      updateDebug();
+      return;
+    }
     const behavior = runBehavior(def.on_click, {
       btn,
       def,
@@ -659,8 +837,7 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
       reduced: motionReduced(),
       phase: "click",
       whisper: showWhisper,
-      lines: config.behavior_lines,
-    });
+      });
     const timeout = btn.dataset.role === "correct" ? 1600 : 2200;
     let result: string = await Promise.race([behavior, timer(timeout).then(() => "timeout")]);
     if (debugEnabled) console.info("[behavior result]", def.on_click, result);
@@ -691,7 +868,8 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
     await wrongFeedback(def, btn, question);
   } finally {
     clearTimeout(watchdog);
-    activating = false;
+    if (correctTap) activating = false;
+    else wrongBusy = false;
     updateDebug();
   }
 }
@@ -715,29 +893,43 @@ async function advance(target: string | undefined, question: Question): Promise<
 function completeInteraction(question: Question, next?: string): void {
   if (siteState !== "question_active") return;
   setState("transitioning", 2800, () => forceRevealQuestion());
-  const target = next ?? question.interaction?.next ?? nextQuestionId(question.id);
+  const target = next ?? nextQuestionId(currentBase?.id ?? question.id);
   void advance(target, question);
 }
 
 async function renderQuestion(id: string, skipExit = false): Promise<void> {
-  const question = findQuestion(id);
-  if (!question) return;
+  const base = findQuestion(id);
+  if (!base) return;
+  const plan = planFor(base);
+  const question = effectiveQuestion(base, plan);
+  currentBase = base;
+  currentPlan = plan;
+  currentVariantId = plan.variantId;
+  currentGameId = plan.gameId;
+  currentQuestion = question;
   const token = ++transitionToken;
   const exitMotion = currentTheme.motion;
   setState("transitioning", 3000, () => recoverQuestion(token));
+  const upcomingTheme = themeFor(config, effectiveThemeId(base));
+  await waitForFonts(upcomingTheme, 1600);
 
   if (!skipExit) {
     await Promise.race([sceneExit(questionScene, exitMotion, motionReduced()), timer(1200)]);
   }
   if (token !== transitionToken) return;
 
-  currentQuestion = question;
+  gsap.killTweensOf(Array.from(questionScene.querySelectorAll("*")));
   updateDebug();
-  const themeId = effectiveThemeId(question);
+  const themeId = effectiveThemeId(base);
   const theme = applyTheme(themeId);
 
   endingScene.hidden = true;
   questionScene.hidden = false;
+  const mountSheet = questionScene.querySelector<HTMLElement>("[data-sheet]");
+  if (mountSheet) {
+    gsap.killTweensOf(mountSheet);
+    gsap.set(mountSheet, { clearProps: "transform,opacity", scaleY: 1, opacity: 1, visibility: "visible" });
+  }
   if (window.scrollY > 4) {
     window.scrollTo({ top: 0, behavior: motionReduced() ? "auto" : "smooth" });
   }
@@ -745,28 +937,47 @@ async function renderQuestion(id: string, skipExit = false): Promise<void> {
   gsap.set(questionScene, { clearProps: "filter,opacity" });
 
   eyebrowEl.textContent = question.eyebrow ?? "";
-  const text = question.text_by_theme?.[themeId] ?? question.text;
-  splitWords(questionEl, text);
+  const text = question.text;
+  splitWords(questionEl, text ?? "");
   interactionCleanup?.();
   interactionCleanup = null;
   answersEl.replaceChildren();
-  if ((question.type ?? "buttons") === "buttons") {
+  if (plan.gameId === "buttons") {
     currentButtons = (question.buttons ?? []).map((def, index) => createButton(def, index, question));
   } else {
     currentButtons = [];
-    interactionCleanup = mountInteraction(question, answersEl, {
-      canInteract: () => siteState === "question_active" && !locked,
-      complete: (next) => completeInteraction(question, next),
-      whisper: showWhisper,
-      reduced: motionReduced(),
+    interactionCleanup = mountMinigame(answersEl, plan.gameId, {
+      question,
+      games: gameRegistry,
+      caps,
+      permissions: prefs.permissions ?? {},
+      enabled: minigameEnabled,
       theme,
+      reduced: motionReduced(),
+      muted: audio.isMuted(),
+      complete: () => completeInteraction(question, nextQuestionId(base.id)),
+      whisper: showWhisper,
+      toast: showToast,
+      setPermission: (kind, state) => {
+        prefs = patchPrefs({ permissions: { ...(prefs.permissions ?? {}), [kind]: state } });
+        updateDebug();
+      },
+      onGame: (gameId) => {
+        currentGameId = gameId;
+        updateDebug();
+      },
+      printCaption: config.global.print_caption,
+      printSignature: config.global.print_signature,
     });
   }
   whisperEl.textContent = "";
   gsap.set(whisperEl, { opacity: 0 });
 
   updateMusic(question, theme);
-  const entrance = questionEntrance(questionScene, { reduced: motionReduced(), motion: theme.motion });
+  const entrance = questionEntrance(questionScene, {
+    reduced: motionReduced(),
+    motion: plan.animation ?? theme.motion,
+  });
   let entranceDone = false;
   entrance.eventCallback("onComplete", () => {
     entranceDone = true;
@@ -780,6 +991,7 @@ async function renderQuestion(id: string, skipExit = false): Promise<void> {
     setState("question_active");
   });
   setState("question_active");
+  window.setTimeout(() => confirmQuestionVisible(token), 320);
   window.setTimeout(() => {
     if (token !== transitionToken || entranceDone) return;
     if (siteState !== "question_active" && siteState !== "transitioning") return;
@@ -854,6 +1066,7 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   hideInstall();
   setState("ending_active", 12000, () => forceEndingVisible());
   const theme = applyTheme(themeId);
+  await waitForFonts(theme, 1600);
   audio.setTrack(resolveAudio(theme.music ?? config.global.music));
 
   if (!questionScene.hidden) {
@@ -868,7 +1081,7 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   }
   const keepsake = qs<HTMLButtonElement>("[data-sticker-keepsake]");
   if (keepsake) keepsake.hidden = true;
-  gsap.killTweensOf(endingHost.querySelectorAll("*"));
+  gsap.killTweensOf(Array.from(endingHost.querySelectorAll("*")));
   endingHost.replaceChildren();
   endingActions.classList.remove("is-ready");
 
@@ -892,10 +1105,19 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   buildEndingActions();
   gsap.set(endingActions, { opacity: 0 });
 
+  const notes = (theme.ending.notes?.length ? theme.ending.notes : config.ending_notes?.[themeId]) ?? [theme.ending.note];
+  const notePool = notes.filter(Boolean);
+  let endingNote = notePool[0] ?? theme.ending.note;
+  if (notePool.length > 1) {
+    const options = notePool.filter((note) => note !== lastEndingNote);
+    endingNote = options[Math.floor(Math.random() * options.length)] ?? endingNote;
+  }
+  lastEndingNote = endingNote;
+
   try {
     await playEnding(animation, {
       root,
-      note: theme.ending.note,
+      note: endingNote,
       signature: theme.ending.signature,
       reduced: motionReduced(),
       theme,
@@ -966,20 +1188,14 @@ function playIntro(): Promise<void> {
     introEl.addEventListener("pointerdown", skip, { once: true });
     introEl.addEventListener("keydown", skip);
 
-    const blur = canBlur() && !reduced;
-    gsap
-      .timeline()
-      .fromTo(
-        introLine,
-        { autoAlpha: 0, y: 24, ...(blur ? { filter: "blur(10px)" } : {}) },
-        { autoAlpha: 1, y: 0, ...(blur ? { filter: "blur(0px)" } : {}), duration: reduced ? 0.4 : 1.2, ease: EASE.pillow }
-      )
-      .fromTo(
-        introSub,
-        { autoAlpha: 0, y: 12 },
-        { autoAlpha: 1, y: 0, duration: reduced ? 0.3 : 0.9, ease: EASE.hush },
-        reduced ? 0.1 : 0.55
-      );
+    void revealText([introLine, introSub].filter((node): node is HTMLElement => Boolean(node)), {
+      theme: currentTheme,
+      reduced,
+      duration: reduced ? 0.35 : 0.9,
+      stagger: reduced ? 0.05 : 0.18,
+      y: 18,
+      ease: EASE.pillow,
+    });
 
     gsap.delayedCall(Math.max(0.8, config.intro.duration / 1000), finish);
   });
@@ -1103,6 +1319,13 @@ function applyPanelState(): void {
     if (span) span.textContent = label;
     motionButton.setAttribute("aria-pressed", String(motionReduced()));
   }
+
+  document.querySelectorAll<HTMLButtonElement>("[data-game-toggle]").forEach((toggle) => {
+    const id = toggle.dataset.gameToggle ?? "";
+    const game = gameRegistry.find((entry) => entry.id === id);
+    toggle.setAttribute("aria-pressed", String(minigameEnabled(id)));
+    toggle.disabled = game?.status !== "ready";
+  });
 }
 
 function selectTheme(id: string): void {
@@ -1113,7 +1336,7 @@ function selectTheme(id: string): void {
   }
   preferredTheme = valid;
   prefs = patchPrefs({ theme: valid });
-  applyTheme(valid);
+  if (debugEnabled) console.info("[theme] write", valid);
   applyPanelState();
   closePanel();
   if (themeSwitching || siteState === "theme_switching" || siteState === "transitioning") {
@@ -1131,6 +1354,12 @@ function openPanel(): void {
     siteState === "theme_switching"
   ) return;
   panelOpen = true;
+  if (debugEnabled) console.info("[panel] open");
+  try {
+    preloadThemeFonts(Object.values(config.themes));
+  } catch (error) {
+    console.warn("[fonts] theme preload failed", error);
+  }
   panelReturnState = ended ? "ending_active" : "question_active";
   lastFocus = document.activeElement as HTMLElement | null;
   applyPanelState();
@@ -1146,7 +1375,8 @@ function openPanel(): void {
 }
 
 function closePanel(): void {
-  if (!panelOpen) return;
+  const wasOpen = panelOpen;
+  if (debugEnabled) console.info("[panel] close", wasOpen, siteState);
   panelOpen = false;
   qs("#secret-backdrop")?.classList.remove("is-open");
   const sheet = qs("#secret-sheet");
@@ -1155,8 +1385,10 @@ function closePanel(): void {
   sheet?.setAttribute("inert", "");
   document.getElementById("app")?.removeAttribute("inert");
   document.removeEventListener("keydown", onPanelKey);
-  setState(panelReturnState);
-  lastFocus?.focus?.();
+  if (wasOpen) {
+    setState(panelReturnState);
+    lastFocus?.focus?.();
+  }
 }
 
 function onPanelKey(event: KeyboardEvent): void {
@@ -1250,6 +1482,60 @@ function bindPanel(): void {
       restartExperience();
     });
   }
+
+  const shuffleButton = qs<HTMLButtonElement>("[data-shuffle]");
+  if (shuffleButton) {
+    shuffleButton.addEventListener("click", () => {
+      clearSeen();
+      buildSession();
+      showNewHint(false);
+      closePanel();
+      restartExperience();
+    });
+  }
+
+  document.querySelectorAll<HTMLButtonElement>("[data-game-toggle]").forEach((toggle) => {
+    toggle.addEventListener("click", async () => {
+      const id = toggle.dataset.gameToggle ?? "";
+      const game = gameRegistry.find((entry) => entry.id === id);
+      if (!game || game.status !== "ready") return;
+      const next = !minigameEnabled(id);
+      if (next) {
+        if (game.permissions.includes("camera") && !caps.camera) {
+          showToast("no camera here. here is a cute alternative.");
+          return;
+        }
+        if (game.permissions.includes("mic") && !caps.mic) {
+          showToast("no microphone here. here is another one.");
+          return;
+        }
+        const kind = permissionFor(game, caps);
+        if (kind) {
+          const granted = await verifyPermission(kind);
+          if (!granted) {
+            prefs = patchPrefs({ permissions: { ...(prefs.permissions ?? {}), [kind]: "denied" } });
+            showToast("no worries. here is another one instead.");
+            applyPanelState();
+            return;
+          }
+          prefs = patchPrefs({ permissions: { ...(prefs.permissions ?? {}), [kind]: "granted" } });
+        }
+      }
+      prefs = patchPrefs({ minigames: { ...(prefs.minigames ?? {}), [id]: next } });
+      applyPanelState();
+      buildSession(false);
+      const currentBaseId = currentBase?.id;
+      if (
+        currentBaseId &&
+        currentPlan?.gameId &&
+        currentPlan.gameId !== "buttons" &&
+        !minigameEnabled(currentPlan.gameId) &&
+        siteState === "question_active"
+      ) {
+        void renderQuestion(currentBaseId, true);
+      }
+    });
+  });
 
   applyPanelState();
 }
@@ -1352,6 +1638,8 @@ async function start(): Promise<void> {
   bindMotionPreference();
   bindRain();
   registerServiceWorker();
+  buildSession();
+  setupDebugApi();
   window.addEventListener("error", (event) => {
     console.error("[app] uncaught", event.error ?? event.message);
   });
@@ -1369,6 +1657,7 @@ async function start(): Promise<void> {
     void renderQuestion(first.id, true);
   }, 6000);
 
+  await waitForFonts(currentTheme, 1600);
   await playIntro();
   if (siteState === "loading") {
     await renderQuestion(first.id, true);

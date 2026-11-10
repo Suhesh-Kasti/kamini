@@ -6,12 +6,12 @@
 /* Shared polish --------------------------------------------------------- */
 
 .scene__sheet {
-  transition: background 700ms var(--ease-breath), box-shadow 700ms var(--ease-breath), transform 700ms var(--ease-snap);
+  transition: background 700ms var(--ease-breath), box-shadow 700ms var(--ease-breath);
 }
 
 @media (pointer: coarse) {
   .scene__sheet {
-    transition: background 700ms var(--ease-breath), transform 700ms var(--ease-snap);
+    transition: background 700ms var(--ease-breath);
   }
 
   .answer {
@@ -25,10 +25,6 @@
 
 .question {
   transition: color 400ms var(--ease-breath), letter-spacing 400ms var(--ease-breath);
-}
-
-.answer {
-  will-change: transform;
 }
 
 /* ==============================================================

@@ -2,6 +2,18 @@
 import { siteConfig } from "../../lib/site-config";
 const themes = Object.entries(siteConfig.themes);
 const egg = siteConfig.easter_egg;
+const games = siteConfig.minigames ?? [];
+const deviceIcon: Record<string, string> = {
+  touch: "hand-pointer",
+  mouse: "computer-mouse",
+  sensor_gyro: "mobile-screen",
+  sensor_accel: "arrows-up-down",
+  camera: "camera",
+  mic: "microphone",
+  keyboard: "keyboard",
+};
+const permissionLabel = (permissions: string[]) =>
+  permissions.filter((permission) => permission !== "none").join(", ");
 ---
 
 <div id="secret-backdrop" class="sheet-backdrop" aria-hidden="true"></div>
@@ -72,8 +84,50 @@ const egg = siteConfig.easter_egg;
   </section>
 
   <section class="sheet__section">
+    <p class="sheet__label"><span>little games</span></p>
+    <p class="sheet__note">turn off anything that does not feel like you. nothing leaves this phone.</p>
+    <div class="game-list" data-game-list>
+      {games.map((game) => (
+        <div class:list={["game-row", game.status === "coming_soon" && "is-coming"]} data-game-row data-game-id={game.id}>
+          <div class="game-row__main">
+            <div class="game-row__title">
+              <span>{game.name}</span>
+              {game.status === "coming_soon" && <span class="game-tag">coming soon</span>}
+            </div>
+            <p class="game-row__desc">{game.description}</p>
+            <div class="game-row__meta">
+              <span class="game-row__devices" aria-label="device support">
+                {game.device_support.map((support) => (
+                  <i class:list={["fa-solid", `fa-${deviceIcon[support] ?? "circle"}`]} title={support} aria-hidden="true"></i>
+                ))}
+              </span>
+              {permissionLabel(game.permissions) && (
+                <span class="game-row__permission">needs {permissionLabel(game.permissions)}</span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            class="settings-switch"
+            data-game-toggle={game.id}
+            aria-pressed={game.enabled_by_default}
+            aria-label={`${game.status === "coming_soon" ? "coming soon: " : ""}${game.name}`}
+            disabled={game.status === "coming_soon"}
+          >
+            <span aria-hidden="true"></span>
+          </button>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="sheet__section">
     <p class="sheet__label"><span>again?</span></p>
     <div class="sheet__actions">
+      <button type="button" class="soft-btn" data-shuffle>
+        <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+        <span>shake it up</span>
+      </button>
       <button type="button" class="soft-btn" data-replay-ending>
         <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
         <span>{siteConfig.ending.replay_label}</span>
