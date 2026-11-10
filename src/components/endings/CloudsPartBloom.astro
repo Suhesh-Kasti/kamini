@@ -1,5 +1,6 @@
 ---
 import HandwrittenNote from "../ui/HandwrittenNote.astro";
+import HeroPhoto from "../ui/HeroPhoto.astro";
 ---
 
 <div class="ending__inner ending--sad" data-ending-scene>
@@ -7,9 +8,14 @@ import HandwrittenNote from "../ui/HandwrittenNote.astro";
     <div class="cloud-soft cloud-soft--dark cloud-left" data-cloud-left></div>
     <div class="cloud-soft cloud-soft--dark cloud-right" data-cloud-right></div>
     <div class="cloud-soft cloud-soft--low" data-cloud-low></div>
-    <div class="beam" data-beam></div>
-    <div class="glow-warm" data-glow></div>
+    <div class="ending-beam" data-beam></div>
+    <div class="ending-glow" data-glow></div>
+    <div class="ending-rain" data-ending-rain>
+      <i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
   </div>
+
+  <HeroPhoto />
 
   <div class="ending__note" data-note-wrap>
     <HandwrittenNote />

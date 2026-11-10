@@ -7,7 +7,7 @@ export interface LocalPrefs {
   lastEndingTheme?: string;
 }
 
-const KEY = "kamini.prefs.v1";
+const KEY = "pocket-mood.prefs.v1";
 
 export function readPrefs(): LocalPrefs {
   try {

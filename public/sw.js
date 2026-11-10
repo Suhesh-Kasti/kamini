@@ -1,4 +1,4 @@
-const VERSION = "kamini-v1";
+const VERSION = "pocket-mood-v1";
 const CORE = [
   "/",
   "/manifest.webmanifest",

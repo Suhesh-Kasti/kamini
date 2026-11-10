@@ -1,0 +1,16 @@
+---
+interface Props {
+  class?: string;
+  pair?: boolean;
+}
+
+const { class: className = "", pair = false } = Astro.props;
+---
+
+<figure class:list={["hero-photo", pair && "hero-photo--pair", className]} data-hero-photo hidden>
+  <div class="hero-photo__frame">
+    <img data-hero-photo-img alt="" loading="lazy" decoding="async" />
+    {pair && <img data-hero-photo-img alt="" loading="lazy" decoding="async" />}
+  </div>
+  <figcaption data-hero-photo-caption></figcaption>
+</figure>

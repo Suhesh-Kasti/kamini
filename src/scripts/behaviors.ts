@@ -53,7 +53,7 @@ function safeOffset(btn: HTMLButtonElement, maxX = 90, maxY = 56): { x: number; 
 
 function killTransforms(btn: HTMLButtonElement): void {
   gsap.killTweensOf(btn);
-  btn.classList.remove("answer--glow", "answer--ghost", "answer--puddle");
+  btn.classList.remove("answer--glow");
 }
 
 function tweenTo(btn: HTMLElement, vars: gsap.TweenVars): Promise<void> {

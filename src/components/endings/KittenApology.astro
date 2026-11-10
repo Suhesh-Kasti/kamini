@@ -1,12 +1,22 @@
 ---
 import HandwrittenNote from "../ui/HandwrittenNote.astro";
+import HeroPhoto from "../ui/HeroPhoto.astro";
 ---
 
-<div class="ending__inner ending--kitten" data-ending-scene>
+<div class="ending__inner ending--angry" data-ending-scene>
   <div class="ending__layer">
-    <div class="glow-warm" data-glow></div>
-    <div class="beam" data-beam></div>
+    <div class="ending-glow" data-glow></div>
+    <div class="ending-coffee"></div>
+    <svg class="ending-claws" viewBox="0 0 140 120" aria-hidden="true">
+      <path d="M6 18c26 8 44 24 56 48" />
+      <path d="M22 8c24 10 40 26 51 50" />
+      <path d="M40 4c20 11 34 28 42 52" />
+    </svg>
+    <div class="kraft-edge kraft-edge--left"></div>
+    <div class="kraft-edge kraft-edge--right"></div>
   </div>
+
+  <HeroPhoto />
 
   <div class="ending__note" data-note-wrap>
     <HandwrittenNote />

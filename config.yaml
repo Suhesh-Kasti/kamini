@@ -1,349 +1,390 @@
 # ================================================================
-# KAMINI
-# A small handmade world. Everything here is editable.
-# Change a value, push, and the whole experience shifts with you.
-# No code edits needed for anything in this file.
+# POCKET MOOD
+# A small world that changes its weather for her.
+#
+# Every theme is a different site: type, layout, decor, motion,
+# material, and 3D scene. Change one field, push, and the whole
+# room changes with you. No code edits needed for content.
 # ================================================================
 
-# Which personality she meets on open.
-# One of: angry_kitten | sad_cloud | sweet_ask | shopping_muse |
-#         save_the_coins | cozy_crochet | just_for_fun
 active_theme: just_for_fun
 
 global:
   her_name: "Kamini"
+  # Add a portrait here and it appears in the endings that opt in.
+  # Relative paths live in public/, for example "images/portrait.webp".
+  # A full https URL also works. Leave null for no photo.
+  her_photo: null
+  her_photo_alt: "a portrait"
+  her_photo_caption: "my favourite person"
+  # Or give the endings a small set to choose from. Each theme below
+  # picks one with ending.photo_index.
+  her_photos:
+    - src: "images/portrait-01.webp"
+      alt: "Portrait in the park, looking back at me"
+      caption: "the park one. mid-blink, slightly furious."
+    - src: "images/portrait-02.webp"
+      alt: "Portrait laughing in front of the temple"
+      caption: "the laughing one. eyes closed. zero notes."
+  # The fallback track for every theme. A theme or question can override it.
+  music: "audio/music.mp3"
   # always | rarely | never
   show_her_name: "rarely"
   # 0.0 to 1.0, the ceiling for every music track
-  music_volume: 0.35
+  music_volume: 0.32
   # Honour the phone's reduce motion setting when true
   reduced_motion_fallback: true
   # Her device settings panel behind the tiny star
   easter_egg_enabled: true
   # Offer "add to home screen" after the ending
   install_prompt: true
-  # Cap the 3D renderer for calmer phones
+  # Render quality ceilings
   max_pixel_ratio: 2
+  max_pixel_ratio_mobile: 1.5
+  # Build the active scene before revealing the canvas
+  preload_scene: true
   # Number of taps on the tiny star before the secret opens
   secret_taps: 2
 
-# A short breath before the first question. Keep it soft.
+# A short breath before the first question.
 intro:
-  line: "hey, you"
-  subline: "I left something here for you"
-  duration: 3200
-
-# These names map to the self hosted font files in src.
-# Two heading faces maximum, one body face. Swap freely.
-fonts:
-  heading: "Dancing Script"
-  subheading: "Parisienne"
-  body: "Quicksand"
+  line: "hey, trouble"
+  subline: "I made you a small thing. Try not to delete it."
+  duration: 3000
 
 # Shared whispers. A question can add its own list,
 # which takes priority. One is chosen at random per tap.
 whispers:
   - "nice try"
   - "I saw that"
-  - "you are a menace, and I adore you"
-  - "hm. try again"
-  - "still not letting you go"
-  - "you really want to do that?"
+  - "you are not subtle"
+  - "the evidence is staying"
+  - "I am putting them on the fridge"
+  - "you are doing the face"
+  - "this is not a negotiation"
+  - "the delete button has filed a complaint"
 
 # The tiny lines a behavior whispers when it does its thing.
-# One is chosen at random from the matching list.
 behavior_lines:
-  swap_roles_correct: ["okay okay, you win"]
-  swap_roles_wrong: ["hm. that is not what you meant"]
-  dodge_accept: ["fine. you win this one"]
-  disabled_polite: ["not this one, love"]
+  swap_roles_correct: ["okay okay, you win", "fine, but the photos stay"]
+  swap_roles_wrong: ["hm. that is not what you meant", "nice try, evidence keeper"]
+  dodge_accept: ["fine. you win this one", "you are surprisingly fast"]
+  disabled_polite: ["not this one, troublemaker"]
   escape: ["gone. it could not take the pressure"]
   sneeze: ["achoo"]
   sleepy: ["it fell asleep. let it rest"]
 
 # ================================================================
 # THEMES
-# Each theme is a complete personality: colour, scene, ending, tone.
-# Add a new theme by copying a block and giving it a fresh key.
-# The matching ending lives in src/components/endings and is
-# registered by name in src/scripts/endings.ts.
+#
+# type:      the three faces for this world, and their weights
+# layout:    which composition the question scene uses
+# decor:     which handmade material and marginalia live around it
+# motion:    the scene transition and easing family
+# material:  the physical paper, cloth, or studio surface
+# scene:     which 3D scene the renderer builds
+# signature_moment: the one interaction only this theme has
+# hand_letter: the true hand-lettered SVG word for this theme
+#
+# Every face is unique across themes. If two themes share a font,
+# this is not a redesign, it is a reskin.
 # ================================================================
 themes:
 
   angry_kitten:
     label: "angry kitten"
-    mood: "gentle apology"
+    mood: "cold cream and burnt rose"
     colors:
-      primary: "#E8A0AE"
-      secondary: "#FFF1EA"
-      accent: "#D96C8A"
-      ink: "#6B3B45"
-      soft: "#F7D8DC"
-      background_gradient: ["#FDEDEA", "#F9D9DD", "#F3C3CC"]
-    three_d:
-      clouds: true
-      cat: true
-      dog: false
-      particles: true
-      yarn_balls: false
-      crochet_hook: false
-      piggy_bank: false
-      shopping_bag: false
-      coins: false
-      envelope: false
-      hearts: false
-      flower: false
+      primary: "#B4575A"
+      secondary: "#F0E4D2"
+      accent: "#7D3F42"
+      ink: "#2C211D"
+      paper: "#EADBC4"
+      highlight: "#C98A5C"
+      background_gradient: ["#E6D5BD", "#D8C4A9", "#C4A98B"]
+    type:
+      display: '"Instrument Serif", Georgia, serif'
+      display_weight: 400
+      hand: '"Caveat", cursive'
+      hand_weight: 600
+      body: '"Manrope", sans-serif'
+      body_weight: 500
+    layout: "torn_left"
+    decor: "kraft_notes"
+    motion: "snap"
+    material: "kraft"
+    scene: "kitten_close"
+    signature_moment: "claw_marks"
     music: null
     ending:
       animation: "kitten_apology"
-      note: "I would rather sit in the quiet with you than be right. Come here when you are ready."
-      signature: "always yours"
-    microcopy_flavor: "apologetic_playful"
+      # photo_index: 0
+      note: "You can be annoyed in high resolution. I am keeping both. One is on the fridge, one is on my phone, and there is nothing you can do about it."
+      signature: "not sorry"
+      hand_letter: "hm."
+    microcopy_flavor: "apologetic_sharp"
 
   sad_cloud:
     label: "sad cloud"
-    mood: "soft weather"
+    mood: "rain on the window"
     colors:
-      primary: "#B4A9D6"
-      secondary: "#F1F4FA"
-      accent: "#8E9FC4"
-      ink: "#4A4763"
-      soft: "#E3DFF3"
-      background_gradient: ["#EEF1F8", "#E3DFF3", "#D7D9EE"]
-    three_d:
-      clouds: true
-      cat: true
-      dog: false
-      particles: true
-      yarn_balls: false
-      crochet_hook: false
-      piggy_bank: false
-      shopping_bag: false
-      coins: false
-      envelope: false
-      hearts: false
-      flower: true
+      primary: "#7E93AA"
+      secondary: "#E9EFF4"
+      accent: "#4C6076"
+      ink: "#26313A"
+      paper: "#F3F5F4"
+      highlight: "#AABBCB"
+      background_gradient: ["#DCE6EE", "#C8D6E2", "#B0C2D2"]
+    type:
+      display: '"Fraunces", Georgia, serif'
+      display_weight: 400
+      hand: '"Reenie Beanie", cursive'
+      hand_weight: 400
+      body: '"Fraunces", Georgia, serif'
+      body_weight: 400
+    layout: "watercolor_center"
+    decor: "rain_window"
+    motion: "drift"
+    material: "watercolor"
+    scene: "cloud_bank"
+    signature_moment: "rain_glass"
     music: null
     ending:
       animation: "clouds_part_bloom"
-      note: "You do not have to carry today alone. I am right here, and I am not going anywhere."
-      signature: "here, quietly"
+      # photo_index: 0
+      note: "I will not make you look at them. I will just keep them. For evidence. And for the days you forget how ridiculous you are."
+      signature: "for the record"
+      hand_letter: "breathe"
     microcopy_flavor: "tender_quiet"
 
   sweet_ask:
     label: "sweet ask"
-    mood: "warm peach sunset"
+    mood: "chocolate counter, gold foil"
     colors:
-      primary: "#F2B48C"
-      secondary: "#FFF0DF"
-      accent: "#E88B5E"
-      ink: "#6E4634"
-      soft: "#FBDCC2"
-      background_gradient: ["#FFF2E2", "#FBDCC2", "#F6C4A4"]
-    three_d:
-      clouds: true
-      cat: false
-      dog: true
-      particles: true
-      yarn_balls: false
-      crochet_hook: false
-      piggy_bank: false
-      shopping_bag: false
-      coins: false
-      envelope: true
-      hearts: true
-      flower: false
+      primary: "#4A2340"
+      secondary: "#F6EDDB"
+      accent: "#B8912E"
+      ink: "#24160F"
+      paper: "#FBF3E3"
+      highlight: "#7A3B2E"
+      background_gradient: ["#FBF3E4", "#F0E2C9", "#E3CFAC"]
+    type:
+      display: '"Italiana", Georgia, serif'
+      display_weight: 400
+      hand: '"Shadows Into Light Two", cursive'
+      hand_weight: 400
+      body: '"Inter", sans-serif'
+      body_weight: 500
+    layout: "chocolate_editorial"
+    decor: "gold_foil"
+    motion: "shimmer"
+    material: "chocolate_paper"
+    scene: "chocolate_flatlay"
+    signature_moment: "chocolate_snap"
     music: null
     ending:
-      animation: "puppy_envelope"
-      note: "One small yes? I promise to make it worth the trouble, and to bring snacks."
-      signature: "asking nicely"
-    microcopy_flavor: "sunny_asking"
+      animation: "chocolate_snap"
+      # photo_index: 1
+      note: "I would trade you chocolate, but I know you would still want the photos gone. Too bad. They are staying."
+      signature: "no deal"
+      hand_letter: "taste"
+    microcopy_flavor: "luxury_teasing"
 
   shopping_muse:
     label: "shopping muse"
-    mood: "candy and gold"
+    mood: "fashion cabinet, gold rule"
     colors:
-      primary: "#F0A6C2"
-      secondary: "#FFF4E8"
-      accent: "#D9A441"
-      ink: "#6A3D4E"
-      soft: "#FBD7E3"
-      background_gradient: ["#FFF0F4", "#FBD7E3", "#F6C1D3"]
-    three_d:
-      clouds: true
-      cat: true
-      dog: false
-      particles: true
-      yarn_balls: false
-      crochet_hook: false
-      piggy_bank: false
-      shopping_bag: true
-      coins: true
-      envelope: false
-      hearts: false
-      flower: false
+      primary: "#121212"
+      secondary: "#F5ECDD"
+      accent: "#B9924E"
+      ink: "#121212"
+      paper: "#FBF6EB"
+      highlight: "#9E2B3A"
+      background_gradient: ["#F8F1E5", "#EFE4D2", "#E4D5BF"]
+    type:
+      display: '"DM Serif Display", Georgia, serif'
+      display_weight: 400
+      hand: '"Kalam", cursive'
+      hand_weight: 400
+      body: '"Karla", sans-serif'
+      body_weight: 400
+    layout: "magazine_spread"
+    decor: "fashion_editorial"
+    motion: "shutter"
+    material: "gloss"
+    scene: "studio_accessories"
+    signature_moment: "foil_shimmer"
     music: null
     ending:
-      animation: "cat_shopping_bag"
-      note: "Buy the thing. But only if it makes you do that little smile I like."
+      animation: "magazine_reveal"
+      # photo_index: 1
+      note: "You cannot buy your way out of this one. I am keeping both, and I am framing the laughing one."
       signature: "your enabler"
-    microcopy_flavor: "flirty_teasing"
+      hand_letter: "want"
+    microcopy_flavor: "editorial_teasing"
 
   save_the_coins:
     label: "save the coins"
-    mood: "mint and cream"
+    mood: "warm desk, small future"
     colors:
-      primary: "#A9CBB7"
-      secondary: "#F6F1E3"
-      accent: "#E2A7B4"
-      ink: "#3F5A4C"
-      soft: "#E2EFE3"
-      background_gradient: ["#EFF5EC", "#E2EFE3", "#D4E6D8"]
-    three_d:
-      clouds: true
-      cat: false
-      dog: false
-      particles: true
-      yarn_balls: false
-      crochet_hook: false
-      piggy_bank: true
-      shopping_bag: false
-      coins: true
-      envelope: false
-      hearts: false
-      flower: true
+      primary: "#8C5A3C"
+      secondary: "#F2E6D1"
+      accent: "#7D9475"
+      ink: "#2E2018"
+      paper: "#FBF0DC"
+      highlight: "#D0846F"
+      background_gradient: ["#F1E3CD", "#E6D2B4", "#D5B992"]
+    type:
+      display: '"Fredoka", sans-serif'
+      display_weight: 600
+      hand: '"Nothing You Could Do", cursive'
+      hand_weight: 400
+      body: '"Sofia Sans", sans-serif'
+      body_weight: 400
+    layout: "warm_ledger"
+    decor: "wood_coins"
+    motion: "spring"
+    material: "wood"
+    scene: "piggy_desk"
+    signature_moment: "coin_counter"
     music: null
     ending:
       animation: "piggy_bank_bloom"
-      note: "We are saving for something soft and ours. A little at a time is still moving."
-      signature: "small steps, together"
-    microcopy_flavor: "gentle_saving"
+      # photo_index: 0
+      note: "These photos are an investment. I am not selling. The fridge agrees with me."
+      signature: "long term"
+      hand_letter: "soon"
+    microcopy_flavor: "gentle_playful"
 
   cozy_crochet:
     label: "cozy crochet"
-    mood: "handmade and warm"
+    mood: "wool, window light, one more row"
     colors:
-      primary: "#C9A28F"
-      secondary: "#F5EBDD"
-      accent: "#9BAE8B"
-      ink: "#5B463A"
-      soft: "#EAD8C8"
-      background_gradient: ["#F7EDE0", "#EAD8C8", "#DCC3B0"]
-    three_d:
-      clouds: true
-      cat: true
-      dog: false
-      particles: true
-      yarn_balls: true
-      crochet_hook: true
-      piggy_bank: false
-      shopping_bag: false
-      coins: false
-      envelope: false
-      hearts: false
-      flower: false
+      primary: "#BC8574"
+      secondary: "#F3EADF"
+      accent: "#7C8F74"
+      ink: "#3A2B25"
+      paper: "#F8F1E7"
+      highlight: "#B07748"
+      background_gradient: ["#F4ECE1", "#EADCCB", "#DCC6AE"]
+    type:
+      display: '"Yeseva One", Georgia, serif'
+      display_weight: 400
+      hand: '"Patrick Hand", cursive'
+      hand_weight: 400
+      body: '"Nunito Sans", sans-serif'
+      body_weight: 400
+    layout: "woven_page"
+    decor: "stitched"
+    motion: "stitch"
+    material: "wool"
+    scene: "yarn_corner"
+    signature_moment: "stitch_note"
     music: null
     ending:
       animation: "yarn_weave_note"
-      note: "Handmade things take time. So does loving you right. I am not rushing either."
-      signature: "stitched with care"
+      # photo_index: 1
+      note: "I crocheted a frame for the evidence. Now it lives here. You are welcome."
+      signature: "stitched and staying"
+      hand_letter: "made"
     microcopy_flavor: "cozy_playful"
 
   just_for_fun:
     label: "just for fun"
-    mood: "cotton candy afternoon"
+    mood: "construction paper, stolen fries"
     colors:
-      primary: "#F3B6CE"
-      secondary: "#FFF6EE"
-      accent: "#9FBFD8"
-      ink: "#66414F"
-      soft: "#FBE0EA"
-      background_gradient: ["#FFF3F7", "#FBE0EA", "#F6CFE0"]
-    three_d:
-      clouds: true
-      cat: true
-      dog: true
-      particles: true
-      yarn_balls: false
-      crochet_hook: false
-      piggy_bank: false
-      shopping_bag: false
-      coins: false
-      envelope: false
-      hearts: true
-      flower: false
+      primary: "#E07E9E"
+      secondary: "#FFF6E7"
+      accent: "#6C8FAD"
+      ink: "#352A36"
+      paper: "#FFF9ED"
+      highlight: "#F0C04A"
+      background_gradient: ["#FFF8EC", "#F8E8EB", "#F0D5DE"]
+    type:
+      display: '"Bricolage Grotesque", sans-serif'
+      display_weight: 600
+      hand: '"Gochi Hand", cursive'
+      hand_weight: 400
+      body: '"Baloo 2", sans-serif'
+      body_weight: 400
+    layout: "scrapbook"
+    decor: "stickers"
+    motion: "bounce"
+    material: "construction"
+    scene: "rug_play"
+    signature_moment: "sticker_keepsake"
     music: null
     ending:
-      animation: "cat_dog_chaos"
-      note: "Nothing clever. I just wanted to see you smile at something I made."
-      signature: "for no reason at all"
+      animation: "sticker_drop"
+      photo_indices: [0, 1]
+      photo_caption: "both. obviously."
+      note: "I printed both. The fridge has already picked a favourite. You can hate them. I think you look ridiculous, and I am keeping them."
+      signature: "keeping both, obviously"
+      hand_letter: "haha"
     microcopy_flavor: "silly_in_love"
 
 # ================================================================
 # QUESTIONS
-# These run in order unless a button says otherwise.
-# Each button:
-#   label        what she sees
-#   role         correct | wrong | trick | neutral
-#   on_hover     behavior when a cursor hovers (desktop)
-#   on_tap       behavior when a finger lands (mobile)
-#   on_click     behavior when the button activates
-#   labels_cycle labels that rotate on wrong taps
-#   next         question id, or "ending". Correct buttons without
-#                next quietly move to the following question.
-#   note         optional small line under this button
-# Every behavior name is in src/scripts/behaviors.ts.
+# All flow lives here. Roles and behaviors are in src/scripts.
+# transition_out: "theme" uses the active theme's motion language.
 # ================================================================
 questions:
 
   - id: "photo_delete"
-    eyebrow: "about those photos"
-    text: "Do you want me to delete these photos?"
+    eyebrow: "a small hostage situation"
+    text: "I found two photos of you that you have been trying to bury. I have them. Both."
     whispers:
-      - "that button is feeling shy"
-      - "it really does not want to be pressed"
-      - "you are chasing a coward"
+      - "the delete button is already running"
+      - "I saw you try to hide the evidence"
+      - "you are doing the guilty face"
     buttons:
-      - label: "Yes"
+      - label: "delete them"
         role: "wrong"
         on_hover: "runaway"
         on_tap: "runaway"
         on_click: "swap_label"
-        labels_cycle: ["Yes", "wait no", "please no", "I did not mean it", "okay stop"]
-      - label: "No"
+        labels_cycle: ["delete them", "okay just one", "fine, neither", "I give up", "you are impossible"]
+      - label: "I am not above bribery"
         role: "correct"
         on_hover: "grow"
         on_click: "grow"
-        next: "photo_confirm"
-    transition_out: "fade_soft"
+        next: "which_one"
+    transition_out: "theme"
 
-  - id: "photo_confirm"
-    eyebrow: "just checking"
-    text: "Are you sure?"
+  - id: "which_one"
+    eyebrow: "be honest"
+    text: "Which one do you hate more? The park one where you are looking back, or the laughing one with your eyes closed?"
     whispers:
-      - "you said no already, remember"
-      - "I am writing that down"
+      - "you hate both. I can tell."
+      - "the photos are not listening"
+      - "this is a safe space. not really."
     buttons:
-      - label: "No"
+      - label: "the park one"
+        role: "wrong"
+        on_hover: "shrink"
+        on_tap: "jelly"
+        on_click: "jelly"
+      - label: "the laughing one"
+        role: "wrong"
+        on_hover: "peek_a_boo"
+        on_tap: "hide_behind"
+        on_click: "swap_label"
+        labels_cycle: ["the laughing one", "actually both", "I refuse", "this is entrapment"]
+      - label: "both. unfortunately."
         role: "correct"
         on_hover: "grow"
         on_click: "swap_roles"
         next: "yarn_picker"
-      - label: "Yes"
-        role: "wrong"
-        on_hover: "shrink"
-        on_tap: "jelly"
-    transition_out: "bounce_warm"
+    transition_out: "theme"
 
   - id: "yarn_picker"
-    eyebrow: "a small favour"
-    text: "Help me pick a yarn color."
+    eyebrow: "a brief distraction"
+    text: "Fine. We can look at yarn for one minute. The photos are still staying, by the way."
     theme_override: "cozy_crochet"
     whispers:
-      - "that one unravelled a little"
-      - "it is not the one, and it knows"
-      - "the yarn is being dramatic"
+      - "the yarn will not save you"
+      - "you are very good at changing the subject"
+      - "one minute. I am timing you."
     buttons:
       - label: "dusty rose"
         role: "wrong"
@@ -354,92 +395,103 @@ questions:
         role: "correct"
         on_hover: "grow"
         on_click: "grow"
-        next: "compliment_trap"
+        next: "lock_screen"
       - label: "butter cream"
         role: "wrong"
         on_hover: "peek_a_boo"
         on_tap: "unravel"
         on_click: "unravel"
-    transition_out: "thread_pull"
+    transition_out: "theme"
 
-  - id: "compliment_trap"
-    eyebrow: "true facts"
-    text: "You are the cutest."
+  - id: "lock_screen"
+    eyebrow: "full disclosure"
+    text: "The laughing one is my lock screen now. Every time I open my phone, you are mid-cackle."
     whispers:
-      - "says the cutest one"
-      - "that answer is hiding now"
-      - "you are not escaping that compliment"
+      - "you are trying to calculate how to steal my phone"
+      - "the photo is load-bearing"
+      - "I can see you plotting"
     buttons:
-      - label: "I know"
+      - label: "change it"
         role: "wrong"
         on_hover: "peek_a_boo"
         on_tap: "hide_behind"
         on_click: "swap_label"
-        labels_cycle: ["I know", "I mean", "maybe", "fine, you too"]
-      - label: "You are cuter"
+        labels_cycle: ["change it", "please", "I am asking nicely", "okay, keep it"]
+      - label: "I will steal your phone"
+        role: "wrong"
+        on_hover: "shrink"
+        on_tap: "jelly"
+        on_click: "jelly"
+      - label: "worth it"
         role: "correct"
         on_hover: "grow"
         on_click: "grow"
-        next: "silly_sneeze"
-    transition_out: "fade_soft"
+        next: "wallpaper"
+    transition_out: "theme"
 
-  - id: "silly_sneeze"
-    eyebrow: "no reason"
-    text: "Want to see something silly?"
-    theme_override: "just_for_fun"
+  - id: "wallpaper"
+    eyebrow: "more evidence"
+    text: "The park one is my wallpaper. The one where you are mid-blink and slightly furious."
     whispers:
-      - "bless you, tiny button"
-      - "it sneezes when nervous"
-      - "that one has no manners"
+      - "you blinked. it is captured forever."
+      - "the printer is already warm"
+      - "you cannot delete a wallpaper with your mind"
     buttons:
-      - label: "bless you"
+      - label: "delete it"
         role: "wrong"
         on_hover: "sneeze"
         on_tap: "sneeze"
         on_click: "sneeze"
-        labels_cycle: ["bless you", "again?", "oh no", "gesundheit", "sit still"]
-      - label: "okay, show me"
+        labels_cycle: ["delete it", "I will delete it myself", "give me the phone", "I am not joking"]
+      - label: "I am telling everyone"
+        role: "wrong"
+        on_hover: "shrink"
+        on_tap: "jelly"
+        on_click: "jelly"
+      - label: "keep it"
         role: "correct"
         on_hover: "grow"
-        on_click: "jelly"
+        on_click: "grow"
         next: "final_ask"
-    transition_out: "bounce_warm"
+    transition_out: "theme"
 
   - id: "final_ask"
     eyebrow: "last one, promise"
-    text: "Can I keep you, exactly like this?"
-    # Optional per theme wording. If the active theme is not listed,
-    # the text above is used.
+    text: "Last one. I am printing both for the fridge. Any last words?"
     text_by_theme:
-      angry_kitten: "Still mad at me? Can I sit with you anyway?"
-      sad_cloud: "Can I stay here until the clouds move?"
-      sweet_ask: "Say yes and I will owe you one forever."
-      shopping_muse: "Can I keep you, and maybe carry the bags?"
-      save_the_coins: "Can we keep saving for our little someday?"
-      cozy_crochet: "Can I keep you, even when I drop a stitch?"
-      just_for_fun: "Can I keep you, exactly like this?"
+      angry_kitten: "You can be annoyed. The photos are still mine. Both of them."
+      sad_cloud: "You can be sad about it. I am still printing both."
+      sweet_ask: "I will trade you chocolate for the photos. No? Then I am printing both."
+      shopping_muse: "You cannot buy your way out of these photos."
+      save_the_coins: "These photos are an investment. I am keeping both."
+      cozy_crochet: "You cannot crochet over the evidence. I am printing both."
+      just_for_fun: "Last one. I am printing both for the fridge. Any last words?"
     whispers:
-      - "the button is patient, unlike me"
-      - "it is a very easy yes"
+      - "the fridge has already picked a favourite"
+      - "you can hate them in high resolution"
+      - "this is the most fun I have had all week"
     buttons:
-      - label: "obviously"
+      - label: "print them"
         role: "correct"
         on_hover: "grow"
         on_click: "grow"
         next: "ending"
-      - label: "let me think"
+      - label: "both. framed."
+        role: "correct"
+        on_hover: "grow"
+        on_click: "grow"
+        next: "ending"
+      - label: "I will hide the printer"
         role: "wrong"
         on_hover: "sleepy"
         on_tap: "sleepy"
         on_click: "sleepy"
-        labels_cycle: ["let me think", "hmm", "still thinking", "okay fine", "yes"]
-    transition_out: "ending_glow"
+        labels_cycle: ["I will hide the printer", "where is the printer", "I am unplugging it", "fine, print them"]
+    transition_out: "theme"
 
-# The ending is chosen by the active theme's ending.animation.
-# After the ending, she can replay it or start again.
 ending:
   replay_label: "one more time"
-  restart_label: "from the top"
+  restart_label: "start over"
   skip_label: "skip ahead"
 
 # ================================================================
@@ -449,10 +501,9 @@ ending:
 easter_egg:
   trigger: "tiny_star_corner"
   unlock_after_taps: 2
-  panel_title: "a little secret"
+  panel_title: "the small controls"
   panel_subtitle: "just between us, on this phone"
   hint_after_seconds: 0
-  # Values saved to localStorage and never sent anywhere.
   settings:
     theme: true
     music_volume: true
@@ -460,7 +511,7 @@ easter_egg:
     replay_ending: true
 
 install:
-  title: "keep me close"
-  body: "so it is there when you miss me."
-  button: "add"
+  title: "keep this close"
+  body: "so the evidence is always one tap away."
+  button: "add to home"
   dismiss: "not now"

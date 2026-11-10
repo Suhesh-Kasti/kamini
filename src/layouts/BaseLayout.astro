@@ -1,20 +1,57 @@
 ---
-import "@fontsource/dancing-script/400.css";
-import "@fontsource/dancing-script/600.css";
-import "@fontsource/dancing-script/700.css";
-import "@fontsource/parisienne/400.css";
-import "@fontsource/quicksand/400.css";
-import "@fontsource/quicksand/500.css";
-import "@fontsource/quicksand/600.css";
-import "@fontsource/quicksand/700.css";
+import "@fontsource/instrument-serif/latin-400.css";
+import "@fontsource/instrument-serif/latin-400-italic.css";
+import "@fontsource/caveat/latin-400.css";
+import "@fontsource/caveat/latin-600.css";
+import "@fontsource/manrope/latin-400.css";
+import "@fontsource/manrope/latin-500.css";
+import "@fontsource/manrope/latin-600.css";
+import "@fontsource/manrope/latin-700.css";
+import "@fontsource/fraunces/latin-400.css";
+import "@fontsource/fraunces/latin-600.css";
+import "@fontsource/fraunces/latin-700.css";
+import "@fontsource/reenie-beanie/latin-400.css";
+import "@fontsource/italiana/latin-400.css";
+import "@fontsource/shadows-into-light-two/latin-400.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/dm-serif-display/latin-400.css";
+import "@fontsource/dm-serif-display/latin-400-italic.css";
+import "@fontsource/kalam/latin-400.css";
+import "@fontsource/kalam/latin-700.css";
+import "@fontsource/karla/latin-400.css";
+import "@fontsource/karla/latin-500.css";
+import "@fontsource/karla/latin-600.css";
+import "@fontsource/fredoka/latin-400.css";
+import "@fontsource/fredoka/latin-500.css";
+import "@fontsource/fredoka/latin-600.css";
+import "@fontsource/nothing-you-could-do/latin-400.css";
+import "@fontsource/sofia-sans/latin-400.css";
+import "@fontsource/sofia-sans/latin-500.css";
+import "@fontsource/sofia-sans/latin-600.css";
+import "@fontsource/yeseva-one/latin-400.css";
+import "@fontsource/patrick-hand/latin-400.css";
+import "@fontsource/nunito-sans/latin-400.css";
+import "@fontsource/nunito-sans/latin-600.css";
+import "@fontsource/nunito-sans/latin-700.css";
+import "@fontsource/bricolage-grotesque/latin-400.css";
+import "@fontsource/bricolage-grotesque/latin-600.css";
+import "@fontsource/bricolage-grotesque/latin-700.css";
+import "@fontsource/gochi-hand/latin-400.css";
+import "@fontsource/baloo-2/latin-400.css";
+import "@fontsource/baloo-2/latin-500.css";
+import "@fontsource/baloo-2/latin-600.css";
 import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 import "../styles/global.css";
+import "../styles/themes.css";
 import "../styles/endings.css";
 
 import { siteConfig, themeOrFallback } from "../lib/site-config";
 import MusicToggle from "../components/ui/MusicToggle.astro";
 import EasterEggPanel from "../components/ui/EasterEggPanel.astro";
+import ThemeChrome from "../components/ui/ThemeChrome.astro";
 
 interface Props {
   title?: string;
@@ -22,6 +59,7 @@ interface Props {
 
 const theme = themeOrFallback(siteConfig.active_theme);
 const c = theme.colors;
+const t = theme.type;
 const pageTitle =
   siteConfig.global.show_her_name === "always"
     ? `for ${siteConfig.global.her_name}`
@@ -34,15 +72,31 @@ const vars = [
   `--c-secondary:${c.secondary}`,
   `--c-accent:${c.accent}`,
   `--c-ink:${c.ink}`,
-  `--c-soft:${c.soft}`,
+  `--c-paper:${c.paper}`,
+  `--c-highlight:${c.highlight}`,
   `--grad-1:${c.background_gradient[0]}`,
   `--grad-2:${c.background_gradient[1]}`,
   `--grad-3:${c.background_gradient[2]}`,
+  `--font-display:${t.display}`,
+  `--font-display-weight:${t.display_weight}`,
+  `--font-hand:${t.hand}`,
+  `--font-hand-weight:${t.hand_weight}`,
+  `--font-body:${t.body}`,
+  `--font-body-weight:${t.body_weight}`,
 ].join(";");
 ---
 
 <!doctype html>
-<html lang="en" data-theme={siteConfig.active_theme} style={vars}>
+<html
+  lang="en"
+  data-theme={siteConfig.active_theme}
+  data-layout={theme.layout}
+  data-decor={theme.decor}
+  data-theme-motion={theme.motion}
+  data-material={theme.material}
+  data-scene={theme.scene}
+  style={vars}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -68,11 +122,10 @@ const vars = [
 
     <div id="app">
       <div class="sky" aria-hidden="true"></div>
-      <div class="aurora aurora--a" aria-hidden="true"></div>
-      <div class="aurora aurora--b" aria-hidden="true"></div>
-      <div class="aurora aurora--c" aria-hidden="true"></div>
       <canvas id="three-stage" aria-hidden="true"></canvas>
       <div class="ground-fog" aria-hidden="true"></div>
+
+      <ThemeChrome />
 
       <main class="stage">
         <slot />
@@ -97,7 +150,7 @@ const vars = [
         </svg>
       </button>
 
-      <div class="install" id="install" role="dialog" aria-label="keep this close" aria-hidden="true">
+      <div class="install" id="install" role="status" aria-live="polite" aria-hidden="true" inert>
         <div class="install__text">
           <p class="install__title" data-install-title></p>
           <p class="install__body" data-install-body></p>
@@ -119,7 +172,7 @@ const vars = [
     <EasterEggPanel />
 
     <script
-      id="kamini-config"
+      id="pocket-mood-config"
       type="application/json"
       is:inline
       set:html={JSON.stringify(siteConfig)}

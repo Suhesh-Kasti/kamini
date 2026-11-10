@@ -2,7 +2,7 @@ import { defineConfig } from "astro/config";
 
 export default defineConfig({
   output: "static",
-  site: "https://kamini.pages.dev",
+  site: "https://pocket-mood.pages.dev",
   build: {
     inlineStylesheets: "auto"
   },

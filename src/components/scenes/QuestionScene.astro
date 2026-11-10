@@ -11,8 +11,10 @@ const { class: className = "" } = Astro.props;
   aria-live="polite"
   aria-label="a small question"
 >
-  <p class="eyebrow" data-eyebrow></p>
-  <h1 class="question" data-question></h1>
-  <div class="answers" data-answers role="group" aria-label="answers"></div>
-  <p class="whisper" data-whisper aria-live="polite"></p>
+  <div class="scene__sheet" data-sheet>
+    <p class="eyebrow" data-eyebrow></p>
+    <h1 class="question" data-question tabindex="-1"></h1>
+    <div class="answers" data-answers role="group" aria-label="answers"></div>
+    <p class="whisper" data-whisper aria-live="polite"></p>
+  </div>
 </section>

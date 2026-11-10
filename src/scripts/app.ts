@@ -39,6 +39,9 @@ const reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 let sceneApi: ThreeSceneApi | null = null;
 let currentQuestion: Question = config.questions[0];
+let currentThemeId = "";
+let currentTheme: Theme = config.themes[config.active_theme] ?? Object.values(config.themes)[0];
+let currentSceneKey = "";
 let currentButtons: HTMLButtonElement[] = [];
 let transitionToken = 0;
 let locked = false;
@@ -49,6 +52,7 @@ let lastEndingTheme = prefs.lastEndingTheme ?? config.active_theme;
 let panelOpen = false;
 let deferredPrompt: InstallEvent | null = null;
 let lastFocus: HTMLElement | null = null;
+let coinValue = Number(sessionStorage.getItem("pocket-mood.coins") ?? 0);
 
 const questionScene = required("#question-scene");
 const endingScene = required("#ending-scene");
@@ -58,6 +62,7 @@ const eyebrowEl = required("[data-eyebrow]");
 const questionEl = required("[data-question]");
 const answersEl = required("[data-answers]");
 const whisperEl = required("[data-whisper]");
+const canvas = document.getElementById("three-stage") as HTMLCanvasElement | null;
 const introEl = qs("#intro");
 const introLine = qs("[data-intro-line]");
 const introSub = qs("[data-intro-sub]");
@@ -83,29 +88,67 @@ function applyMotionPreference(): void {
   sceneApi?.setReduced(isReduced);
 }
 
-function applyTypography(): void {
-  const root = document.documentElement;
-  root.style.setProperty("--font-heading", `"${config.fonts.heading}", "Segoe Script", cursive`);
-  root.style.setProperty("--font-sub", `"${config.fonts.subheading}", "Dancing Script", cursive`);
-  root.style.setProperty("--font-body", `"${config.fonts.body}", "Trebuchet MS", sans-serif`);
-}
-
 function applyTheme(themeId: string): Theme {
   const theme = themeFor(config, themeId);
   const root = document.documentElement;
-  root.style.setProperty("--c-primary", theme.colors.primary);
-  root.style.setProperty("--c-secondary", theme.colors.secondary);
-  root.style.setProperty("--c-accent", theme.colors.accent);
-  root.style.setProperty("--c-ink", theme.colors.ink);
-  root.style.setProperty("--c-soft", theme.colors.soft);
-  root.style.setProperty("--grad-1", theme.colors.background_gradient[0]);
-  root.style.setProperty("--grad-2", theme.colors.background_gradient[1]);
-  root.style.setProperty("--grad-3", theme.colors.background_gradient[2]);
+  const c = theme.colors;
+  const t = theme.type;
+
+  root.style.setProperty("--c-primary", c.primary);
+  root.style.setProperty("--c-secondary", c.secondary);
+  root.style.setProperty("--c-accent", c.accent);
+  root.style.setProperty("--c-ink", c.ink);
+  root.style.setProperty("--c-paper", c.paper);
+  root.style.setProperty("--c-highlight", c.highlight);
+  root.style.setProperty("--grad-1", c.background_gradient[0]);
+  root.style.setProperty("--grad-2", c.background_gradient[1]);
+  root.style.setProperty("--grad-3", c.background_gradient[2]);
+  root.style.setProperty("--font-display", t.display);
+  root.style.setProperty("--font-display-weight", String(t.display_weight));
+  root.style.setProperty("--font-hand", t.hand);
+  root.style.setProperty("--font-hand-weight", String(t.hand_weight));
+  root.style.setProperty("--font-body", t.body);
+  root.style.setProperty("--font-body-weight", String(t.body_weight));
+
+  root.dataset.theme = themeId;
+  root.dataset.layout = theme.layout;
+  root.dataset.decor = theme.decor;
+  root.dataset.themeMotion = theme.motion;
+  root.dataset.material = theme.material;
+  root.dataset.scene = theme.scene;
   document.body.dataset.theme = themeId;
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", theme.colors.background_gradient[0]);
-  sceneApi?.setTheme(theme, motionReduced());
+    ?.setAttribute("content", c.background_gradient[0]);
+
+  currentThemeId = themeId;
+  currentTheme = theme;
+  const clawLayer = qs("[data-claw-layer]");
+  if (clawLayer) clawLayer.replaceChildren();
+  if (theme.signature_moment === "claw_marks") restoreClaws();
+
+  if (sceneApi && currentSceneKey !== theme.scene) {
+    currentSceneKey = theme.scene;
+    if (canvas) {
+      gsap.to(canvas, {
+        opacity: 0,
+        duration: motionReduced() ? 0.08 : 0.28,
+        ease: "power2.in",
+        onComplete: () => {
+          sceneApi?.setTheme(theme, motionReduced());
+          if (!ended && questionScene && !questionScene.hidden) {
+            gsap.to(canvas, { opacity: 1, duration: motionReduced() ? 0.15 : 0.8, ease: "power2.out", delay: 0.04 });
+          }
+        },
+      });
+    } else {
+      sceneApi.setTheme(theme, motionReduced());
+    }
+  } else if (sceneApi && !currentSceneKey) {
+    currentSceneKey = theme.scene;
+    sceneApi.setTheme(theme, motionReduced());
+  }
+
   return theme;
 }
 
@@ -125,8 +168,68 @@ function resolveAudio(src: string | null | undefined): string | null {
   return `/${src}`;
 }
 
+function resolvePhoto(src: string): string {
+  if (/^(https?:)?\/\//.test(src) || src.startsWith("/")) return src;
+  return `/${src}`;
+}
+
+function populateHeroPhoto(root: HTMLElement, isReduced: boolean): void {
+  const figure = root.querySelector<HTMLElement>("[data-hero-photo]");
+  if (!figure) return;
+  const indices =
+    currentTheme.ending.photo_indices ??
+    (currentTheme.ending.photo_index !== undefined ? [currentTheme.ending.photo_index] : []);
+  if (indices.length === 0) {
+    figure.hidden = true;
+    return;
+  }
+  const photos = config.global.her_photos ?? [];
+  const single = config.global.her_photo;
+  const singleEntry = single
+    ? { src: single, alt: config.global.her_photo_alt, caption: config.global.her_photo_caption }
+    : null;
+  const entries = indices
+    .map((index) => singleEntry ?? photos[index] ?? null)
+    .filter((entry): entry is { src: string; alt?: string; caption?: string } => Boolean(entry));
+  if (entries.length === 0) {
+    figure.hidden = true;
+    return;
+  }
+  const imgs = Array.from(figure.querySelectorAll<HTMLImageElement>("[data-hero-photo-img]"));
+  imgs.forEach((img, index) => {
+    const entry = entries[index] ?? entries[entries.length - 1];
+    if (!entry?.src) {
+      img.style.display = "none";
+      return;
+    }
+    img.src = resolvePhoto(entry.src);
+    img.alt = entry.alt || "a portrait";
+    img.addEventListener("error", () => { img.style.display = "none"; }, { once: true });
+  });
+  const caption = figure.querySelector<HTMLElement>("[data-hero-photo-caption]");
+  if (caption) {
+    caption.textContent =
+      currentTheme.ending.photo_caption ||
+      entries[0].caption ||
+      config.global.her_photo_caption ||
+      "";
+  }
+  figure.hidden = false;
+  endingScene.classList.add("has-photo");
+  gsap.set(figure, { autoAlpha: 0, y: 18, scale: 0.92, rotate: -6 });
+  gsap.to(figure, {
+    autoAlpha: 1,
+    y: 0,
+    scale: 1,
+    rotate: -2,
+    duration: isReduced ? 0.3 : 0.9,
+    delay: isReduced ? 0.15 : 2.1,
+    ease: "back.out(1.5)",
+  });
+}
+
 function updateMusic(question: Question, theme: Theme): void {
-  audio.setTrack(resolveAudio(question.music_override ?? theme.music));
+  audio.setTrack(resolveAudio(question.music_override ?? theme.music ?? config.global.music));
 }
 
 function showWhisper(text: string): void {
@@ -166,9 +269,111 @@ function pickWhisper(question: Question): string {
   return pick;
 }
 
+function triggerShimmer(): void {
+  if (currentTheme.signature_moment !== "foil_shimmer" && currentTheme.motion !== "shimmer") return;
+  document.documentElement.classList.add("is-shimmer");
+  window.setTimeout(() => document.documentElement.classList.remove("is-shimmer"), 1200);
+}
+
+function addClawMark(btn: HTMLButtonElement): void {
+  if (currentTheme.signature_moment !== "claw_marks") return;
+  const layer = qs("[data-claw-layer]");
+  if (!layer) return;
+  const rect = btn.getBoundingClientRect();
+  const mark = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  mark.setAttribute("viewBox", "0 0 80 80");
+  mark.classList.add("claw-mark");
+  mark.style.left = `${rect.left + rect.width * (0.25 + Math.random() * 0.5)}px`;
+  mark.style.top = `${rect.top - 18}px`;
+  mark.style.setProperty("--claw-rotation", `${-24 + Math.random() * 48}deg`);
+  mark.innerHTML =
+    '<path d="M8 10c14 10 24 24 30 44"/><path d="M22 4c12 12 20 26 25 46"/><path d="M38 2c10 13 16 28 19 48"/>';
+  layer.append(mark);
+  const saved = JSON.parse(sessionStorage.getItem("pocket-mood.claws") ?? "[]") as { left: string; top: string }[];
+  saved.push({ left: mark.style.left, top: mark.style.top });
+  sessionStorage.setItem("pocket-mood.claws", JSON.stringify(saved.slice(-8)));
+}
+
+function restoreClaws(): void {
+  const layer = qs("[data-claw-layer]");
+  if (!layer) return;
+  layer.replaceChildren();
+  const saved = JSON.parse(sessionStorage.getItem("pocket-mood.claws") ?? "[]") as { left: string; top: string }[];
+  saved.forEach((mark) => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 80 80");
+    svg.classList.add("claw-mark");
+    svg.style.left = mark.left;
+    svg.style.top = mark.top;
+    svg.innerHTML =
+      '<path d="M8 10c14 10 24 24 30 44"/><path d="M22 4c12 12 20 26 25 46"/><path d="M38 2c10 13 16 28 19 48"/>';
+    layer.append(svg);
+  });
+}
+
+function bindRain(): void {
+  const layer = qs("[data-rain-layer]");
+  if (!layer || layer.childElementCount > 0) return;
+  const addDrop = () => {
+    const drop = document.createElement("span");
+    drop.className = "rain-drop";
+    const edge = Math.random() > 0.5;
+    drop.style.left = edge ? `${2 + Math.random() * 10}%` : `${88 + Math.random() * 9}%`;
+    drop.style.top = `${8 + Math.random() * 78}%`;
+    drop.style.width = `${7 + Math.random() * 6}px`;
+    drop.style.height = `${18 + Math.random() * 14}px`;
+    drop.addEventListener("click", () => {
+      drop.classList.add("is-splashing");
+      window.setTimeout(() => drop.remove(), 600);
+      window.setTimeout(addDrop, 1400);
+    });
+    layer.append(drop);
+  };
+  for (let i = 0; i < 9; i += 1) window.setTimeout(addDrop, i * 180);
+}
+
+function bumpCoin(): void {
+  if (currentTheme.signature_moment !== "coin_counter") return;
+  coinValue += 1;
+  sessionStorage.setItem("pocket-mood.coins", String(coinValue));
+  const value = qs("[data-coin-value]");
+  if (!value) return;
+  value.textContent = String(coinValue);
+  gsap.fromTo(
+    value,
+    { scale: 1 },
+    { scale: 1.18, duration: 0.16, yoyo: true, repeat: 1, ease: "power2.out", transformOrigin: "50% 50%" }
+  );
+}
+
+function showStickerKeepsake(): void {
+  if (currentTheme.ending.animation !== "sticker_drop") return;
+  const sticker = qs<HTMLButtonElement>("[data-sticker-keepsake]");
+  if (!sticker) return;
+  sticker.hidden = false;
+  gsap.fromTo(
+    sticker,
+    { scale: 0.3, rotate: -22, opacity: 0 },
+    { scale: 1, rotate: -8, opacity: 1, duration: 0.9, ease: "back.out(1.7)" }
+  );
+  sticker.onclick = () => {
+    gsap.to(sticker, {
+      scale: 0.3,
+      rotate: 24,
+      opacity: 0,
+      duration: 0.4,
+      ease: "power2.in",
+      onComplete: () => {
+        sticker.hidden = true;
+      },
+    });
+  };
+}
+
 function bindButton(btn: HTMLButtonElement, def: QuestionButton, question: Question): void {
   btn.addEventListener("pointerenter", () => {
     if (!finePointer.matches || locked) return;
+    if (def.role === "correct") triggerShimmer();
     void runPhase(def.on_hover, def, btn, question, "hover");
   });
 
@@ -180,7 +385,7 @@ function bindButton(btn: HTMLButtonElement, def: QuestionButton, question: Quest
     try {
       btn.setPointerCapture(event.pointerId);
     } catch {
-      // Some older engines refuse capture. The tap still works.
+      // Pointer capture can be refused. The tap still works.
     }
     void runPhase(def.on_tap, def, btn, question, "tap");
   });
@@ -262,6 +467,8 @@ async function wrongFeedback(def: QuestionButton, btn: HTMLButtonElement, questi
 
   showWhisper(pickWhisper(question));
   bumpCorrectButtons();
+  addClawMark(btn);
+  bumpCoin();
 
   question.buttons.forEach((buttonDef, index) => {
     const candidate = currentButtons[index];
@@ -286,6 +493,8 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
   if (btn.dataset.state === "gone") return;
   activating = true;
   try {
+    bumpCoin();
+    if (btn.dataset.role === "correct") triggerShimmer();
     const result = await runBehavior(def.on_click, {
       btn,
       def,
@@ -310,8 +519,8 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
       }
       locked = true;
       const target = def.next ?? nextQuestionId(question.id);
-      await wait(motionReduced() ? 0.04 : 0.16);
-      await advance(target, question.transition_out);
+      await wait(motionReduced() ? 0.03 : 0.14);
+      await advance(target, question);
       return;
     }
 
@@ -321,31 +530,31 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
   }
 }
 
-async function advance(target: string | undefined, transition = "fade_soft"): Promise<void> {
-  const index = config.questions.findIndex((question) => question.id === currentQuestion.id);
+async function advance(target: string | undefined, question: Question): Promise<void> {
+  const index = config.questions.findIndex((item) => item.id === question.id);
   const isLast = index === config.questions.length - 1;
   if (target === "ending" || (!target && isLast)) {
     await showEnding();
     return;
   }
-
   let resolved = target && findQuestion(target) ? target : undefined;
-  if (!resolved) resolved = nextQuestionId(currentQuestion.id);
+  if (!resolved) resolved = nextQuestionId(question.id);
   if (!resolved) {
     await showEnding();
     return;
   }
-  await renderQuestion(resolved, transition);
+  await renderQuestion(resolved);
 }
 
-async function renderQuestion(id: string, transition = "fade_soft", skipExit = false): Promise<void> {
+async function renderQuestion(id: string, skipExit = false): Promise<void> {
   const question = findQuestion(id);
   if (!question) return;
   const token = ++transitionToken;
+  const exitMotion = currentTheme.motion;
   locked = true;
 
   if (!skipExit) {
-    await sceneExit(questionScene, transition, motionReduced());
+    await sceneExit(questionScene, exitMotion, motionReduced());
   }
   if (token !== transitionToken) return;
 
@@ -355,7 +564,7 @@ async function renderQuestion(id: string, transition = "fade_soft", skipExit = f
 
   endingScene.hidden = true;
   questionScene.hidden = false;
-  document.getElementById("three-stage")?.classList.remove("is-dimmed");
+  if (canvas) gsap.to(canvas, { opacity: 1, duration: motionReduced() ? 0.15 : 0.75, ease: "power2.out" });
   gsap.set(questionScene, { clearProps: "filter,opacity" });
 
   eyebrowEl.textContent = question.eyebrow ?? "";
@@ -367,10 +576,14 @@ async function renderQuestion(id: string, transition = "fade_soft", skipExit = f
   gsap.set(whisperEl, { opacity: 0 });
 
   updateMusic(question, theme);
-  questionEntrance(questionScene, { reduced: motionReduced() });
+  questionEntrance(questionScene, { reduced: motionReduced(), motion: theme.motion });
 
   ended = false;
   locked = false;
+
+  window.setTimeout(() => {
+    if (!questionScene.hidden) questionEl.focus({ preventScroll: true });
+  }, 120);
 }
 
 function buildEndingActions(): void {
@@ -396,7 +609,7 @@ function buildEndingActions(): void {
   const restartLabel = document.createElement("span");
   restartLabel.textContent = config.ending.restart_label;
   restart.append(restartIcon, restartLabel);
-  restart.addEventListener("click", () => restartExperience(false));
+  restart.addEventListener("click", () => restartExperience());
 
   endingActions.append(replay, restart);
 }
@@ -406,14 +619,17 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   ended = true;
   hideInstall();
   const theme = applyTheme(themeId);
-  audio.setTrack(resolveAudio(theme.music));
+  audio.setTrack(resolveAudio(theme.music ?? config.global.music));
 
   if (!questionScene.hidden) {
-    await sceneExit(questionScene, "ending_glow", motionReduced());
+    await sceneExit(questionScene, theme.motion, motionReduced());
   }
+  if (canvas) gsap.to(canvas, { opacity: 0, duration: motionReduced() ? 0.2 : 0.7, ease: "power2.in" });
   questionScene.hidden = true;
   endingScene.hidden = false;
-  document.getElementById("three-stage")?.classList.add("is-dimmed");
+  endingScene.classList.remove("has-photo");
+  const keepsake = qs<HTMLButtonElement>("[data-sticker-keepsake]");
+  if (keepsake) keepsake.hidden = true;
   endingHost.replaceChildren();
   endingActions.classList.remove("is-ready");
 
@@ -427,6 +643,7 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   const root = endingHost.querySelector<HTMLElement>("[data-ending-scene]");
   if (!root) return;
 
+  populateHeroPhoto(root, motionReduced());
   buildEndingActions();
   gsap.set(endingActions, { opacity: 0 });
 
@@ -446,22 +663,26 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   });
   lastEndingTheme = themeId;
   prefs = patchPrefs({ lastEndingTheme: themeId });
+  showStickerKeepsake();
 
   if (config.global.install_prompt && !prefs.installDismissed) {
     gsap.delayedCall(1.8, showInstall);
   }
 }
 
-function restartExperience(silent = false): void {
+function restartExperience(): void {
   transitionToken += 1;
   hideInstall();
+  const sticker = qs<HTMLButtonElement>("[data-sticker-keepsake]");
+  if (sticker) sticker.hidden = true;
   endingScene.hidden = true;
   questionScene.hidden = false;
   ended = false;
   locked = false;
   activating = false;
+  if (canvas) gsap.to(canvas, { opacity: 1, duration: 0.7, ease: "power2.out" });
   gsap.set(questionScene, { clearProps: "filter,opacity" });
-  void renderQuestion(config.questions[0].id, silent ? "fade_soft" : "bounce_warm", true);
+  void renderQuestion(config.questions[0].id, true);
 }
 
 function playIntro(): Promise<void> {
@@ -488,7 +709,6 @@ function playIntro(): Promise<void> {
         },
       });
     };
-
     const skip = (event: Event) => {
       if (event.type === "keydown") {
         const key = (event as KeyboardEvent).key;
@@ -504,13 +724,7 @@ function playIntro(): Promise<void> {
       .fromTo(
         introLine,
         { autoAlpha: 0, y: 24, filter: "blur(10px)" },
-        {
-          autoAlpha: 1,
-          y: 0,
-          filter: "blur(0px)",
-          duration: reduced ? 0.4 : 1.2,
-          ease: EASE.pillow,
-        }
+        { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: reduced ? 0.4 : 1.2, ease: EASE.pillow }
       )
       .fromTo(
         introSub,
@@ -524,16 +738,18 @@ function playIntro(): Promise<void> {
 }
 
 async function initThree(): Promise<void> {
-  const canvas = qs<HTMLCanvasElement>("#three-stage");
   if (!canvas) return;
   try {
     const { createThreeScene } = await import("./three-scene");
     sceneApi = await createThreeScene(canvas, {
       maxPixelRatio: config.global.max_pixel_ratio,
+      maxPixelRatioMobile: config.global.max_pixel_ratio_mobile,
       reduced: motionReduced(),
     });
-    applyTheme(effectiveThemeId(currentQuestion));
+    currentSceneKey = "";
+    applyTheme(currentThemeId);
     canvas.classList.add("is-ready");
+    if (!ended) gsap.to(canvas, { opacity: 1, duration: 1.1, ease: "power2.out" });
   } catch {
     canvas.style.display = "none";
   }
@@ -579,10 +795,7 @@ function bindSecret(): void {
     return;
   }
 
-  const requiredTaps = Math.max(
-    1,
-    config.easter_egg.unlock_after_taps ?? config.global.secret_taps ?? 2
-  );
+  const requiredTaps = Math.max(1, config.easter_egg.unlock_after_taps ?? config.global.secret_taps ?? 2);
   let taps = 0;
 
   star.addEventListener("click", () => {
@@ -618,9 +831,6 @@ function applyPanelState(): void {
     if (span) span.textContent = label;
     motionButton.setAttribute("aria-pressed", String(motionReduced()));
   }
-
-  const replay = qs<HTMLButtonElement>("[data-replay-ending]");
-  if (replay) replay.disabled = false;
 }
 
 function selectTheme(id: string): void {
@@ -630,7 +840,7 @@ function selectTheme(id: string): void {
   if (showingEnding) {
     void showEnding(id);
   } else {
-    void renderQuestion(currentQuestion.id, "fade_soft", true);
+    void renderQuestion(currentQuestion.id);
   }
 }
 
@@ -643,6 +853,7 @@ function openPanel(): void {
   const sheet = qs("#secret-sheet");
   sheet?.classList.add("is-open");
   sheet?.setAttribute("aria-hidden", "false");
+  sheet?.removeAttribute("inert");
   document.getElementById("app")?.setAttribute("inert", "");
   document.addEventListener("keydown", onPanelKey);
   window.setTimeout(() => qs<HTMLButtonElement>("[data-close-panel]")?.focus(), 120);
@@ -655,6 +866,7 @@ function closePanel(): void {
   const sheet = qs("#secret-sheet");
   sheet?.classList.remove("is-open");
   sheet?.setAttribute("aria-hidden", "true");
+  sheet?.setAttribute("inert", "");
   document.getElementById("app")?.removeAttribute("inert");
   document.removeEventListener("keydown", onPanelKey);
   lastFocus?.focus?.();
@@ -748,7 +960,7 @@ function bindPanel(): void {
   if (restartButton) {
     restartButton.addEventListener("click", () => {
       closePanel();
-      restartExperience(false);
+      restartExperience();
     });
   }
 
@@ -777,12 +989,14 @@ function showInstall(): void {
   }
   install.classList.add("is-open");
   install.setAttribute("aria-hidden", "false");
+  install.removeAttribute("inert");
 }
 
 function hideInstall(): void {
   const install = qs("#install");
   install?.classList.remove("is-open");
   install?.setAttribute("aria-hidden", "true");
+  install?.setAttribute("inert", "");
 }
 
 function bindInstall(): void {
@@ -837,7 +1051,6 @@ function bindMotionPreference(): void {
 }
 
 async function start(): Promise<void> {
-  applyTypography();
   applyTheme(preferredThemeId());
   applyMotionPreference();
   audio.setVolume(prefs.volume ?? config.global.music_volume, false);
@@ -848,25 +1061,16 @@ async function start(): Promise<void> {
   bindPanel();
   bindInstall();
   bindMotionPreference();
+  bindRain();
   registerServiceWorker();
 
   const first = config.questions[0];
   if (!first) return;
 
-  const idle = () => void initThree();
-  const requestIdle = (
-    window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-    }
-  ).requestIdleCallback;
-  if (requestIdle) {
-    requestIdle(idle, { timeout: 2200 });
-  } else {
-    globalThis.setTimeout(idle, 900);
-  }
-
   await playIntro();
-  await renderQuestion(first.id, "fade_soft", true);
+  await renderQuestion(first.id, true);
+
+  gsap.delayedCall(2.2, () => void initThree());
 }
 
 void start();

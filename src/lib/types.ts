@@ -28,36 +28,43 @@ export interface ThemeColors {
   secondary: string;
   accent: string;
   ink: string;
-  soft: string;
+  paper: string;
+  highlight: string;
   background_gradient: [string, string, string];
 }
 
-export interface ThreeFlags {
-  clouds?: boolean;
-  cat?: boolean;
-  dog?: boolean;
-  particles?: boolean;
-  yarn_balls?: boolean;
-  crochet_hook?: boolean;
-  piggy_bank?: boolean;
-  shopping_bag?: boolean;
-  coins?: boolean;
-  envelope?: boolean;
-  hearts?: boolean;
-  flower?: boolean;
+export interface ThemeType {
+  display: string;
+  display_weight: number;
+  hand: string;
+  hand_weight: number;
+  body: string;
+  body_weight: number;
+}
+
+export interface ThemeEnding {
+  animation: string;
+  photo_index?: number;
+  photo_indices?: number[];
+  photo_caption?: string;
+  note: string;
+  signature: string;
+  hand_letter: string;
 }
 
 export interface Theme {
   label: string;
   mood: string;
   colors: ThemeColors;
-  three_d: ThreeFlags;
+  type: ThemeType;
+  layout: string;
+  decor: string;
+  motion: string;
+  material: string;
+  scene: string;
+  signature_moment: string;
   music: string | null;
-  ending: {
-    animation: string;
-    note: string;
-    signature: string;
-  };
+  ending: ThemeEnding;
   microcopy_flavor: string;
 }
 
@@ -67,14 +74,27 @@ export interface IntroConfig {
   duration: number;
 }
 
+export interface PhotoEntry {
+  src: string;
+  alt?: string;
+  caption?: string;
+}
+
 export interface GlobalConfig {
   her_name: string;
+  her_photo?: string | null;
+  her_photo_alt?: string;
+  her_photo_caption?: string;
+  her_photos?: PhotoEntry[];
+  music?: string | null;
   show_her_name: "always" | "rarely" | "never";
   music_volume: number;
   reduced_motion_fallback: boolean;
   easter_egg_enabled: boolean;
   install_prompt: boolean;
   max_pixel_ratio: number;
+  max_pixel_ratio_mobile: number;
+  preload_scene: boolean;
   secret_taps: number;
 }
 
@@ -98,7 +118,6 @@ export interface SiteConfig {
   active_theme: string;
   global: GlobalConfig;
   intro: IntroConfig;
-  fonts: { heading: string; subheading: string; body: string };
   whispers: string[];
   behavior_lines?: Record<string, string[]>;
   themes: Record<string, Theme>;

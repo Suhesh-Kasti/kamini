@@ -2,7 +2,7 @@ import type { SiteConfig, Theme } from "../lib/types";
 
 declare global {
   interface Window {
-    KAMINI_CONFIG?: SiteConfig;
+    POCKET_MOOD_CONFIG?: SiteConfig;
   }
 }
 
@@ -15,12 +15,12 @@ let cached: SiteConfig | null = null;
  */
 export function getConfig(): SiteConfig {
   if (cached) return cached;
-  if (window.KAMINI_CONFIG) {
-    cached = window.KAMINI_CONFIG;
+  if (window.POCKET_MOOD_CONFIG) {
+    cached = window.POCKET_MOOD_CONFIG;
     return cached;
   }
-  const tag = document.getElementById("kamini-config");
-  if (!tag?.textContent) throw new Error("Kamini config is missing from the page.");
+  const tag = document.getElementById("pocket-mood-config");
+  if (!tag?.textContent) throw new Error("Pocket Mood config is missing from the page.");
   cached = JSON.parse(tag.textContent) as SiteConfig;
   return cached;
 }
