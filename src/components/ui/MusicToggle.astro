@@ -10,11 +10,12 @@ const { class: className = "" } = Astro.props;
   class:list={["icon-btn", "music-toggle", className]}
   data-music-toggle
   aria-pressed="false"
-  aria-label="turn music off"
+  aria-label="start music"
   title="music"
 >
   <span class="music-note" aria-hidden="true"></span>
   <span class="music-note" aria-hidden="true"></span>
   <i class="fa-solid fa-volume-high icon-on" aria-hidden="true"></i>
   <i class="fa-solid fa-volume-xmark icon-off" aria-hidden="true"></i>
+  <i class="fa-solid fa-play icon-wait" aria-hidden="true"></i>
 </button>

@@ -1,4 +1,5 @@
 type FadeHandle = number | null;
+type Listener = () => void;
 
 export class AudioPlayer {
   private el: HTMLAudioElement;
@@ -7,6 +8,8 @@ export class AudioPlayer {
   private targetVolume = 0.35;
   private muted = false;
   private unlocked = false;
+  private errored = false;
+  private listeners = new Set<Listener>();
 
   constructor() {
     this.el = new Audio();
@@ -14,6 +17,23 @@ export class AudioPlayer {
     this.el.preload = "none";
     this.el.volume = 0;
     this.el.crossOrigin = "anonymous";
+    ["play", "pause", "loadedmetadata", "ended"].forEach((event) => {
+      this.el.addEventListener(event, () => this.notify());
+    });
+    this.el.addEventListener("error", () => {
+      this.errored = true;
+      console.warn("[music] could not load", this.currentSrc ?? "(no source)");
+      this.notify();
+    });
+  }
+
+  onState(listener: Listener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    this.listeners.forEach((listener) => listener());
   }
 
   setVolume(value: number, persist = true): void {
@@ -29,23 +49,62 @@ export class AudioPlayer {
       this.start();
       this.fadeTo(this.targetVolume, 500);
     }
+    this.notify();
   }
 
   isMuted(): boolean {
     return this.muted;
   }
 
+  get hasTrack(): boolean {
+    return Boolean(this.currentSrc) && !this.errored;
+  }
+
+  get hasError(): boolean {
+    return this.errored;
+  }
+
+  get waitingForGesture(): boolean {
+    return Boolean(this.currentSrc) && !this.unlocked && !this.muted && !this.errored;
+  }
+
+  get waiting(): boolean {
+    return Boolean(this.currentSrc) && !this.playing && !this.muted && !this.errored;
+  }
+
+  get playing(): boolean {
+    return Boolean(this.currentSrc) && !this.el.paused && !this.muted && !this.errored;
+  }
+
+  get source(): string | null {
+    return this.currentSrc;
+  }
+
   /** Called on the first real gesture so the phone lets us play. */
   unlock(): void {
+    if (this.unlocked) return;
     this.unlocked = true;
-    if (this.currentSrc) this.start();
+    this.start();
+    this.notify();
+  }
+
+  /** Used by the music control when a tap is the first gesture. */
+  playNow(): void {
+    this.unlocked = true;
+    this.start();
+    this.notify();
   }
 
   private start(): void {
-    if (!this.currentSrc || this.muted) return;
+    if (!this.currentSrc || this.muted || this.errored) return;
     if (!this.unlocked) return;
     const attempt = this.el.play();
-    if (attempt) attempt.catch(() => undefined);
+    if (attempt) {
+      attempt.catch((error) => {
+        console.warn("[music] playback was blocked", error);
+        this.notify();
+      });
+    }
   }
 
   setTrack(src: string | null, options: { force?: boolean } = {}): void {
@@ -58,16 +117,20 @@ export class AudioPlayer {
         this.el.removeAttribute("src");
         this.el.load();
         this.currentSrc = null;
+        this.errored = false;
+        this.notify();
       });
       return;
     }
 
     this.fadeTo(0, 380, () => {
       this.currentSrc = normalized;
+      this.errored = false;
       this.el.src = normalized;
       this.el.load();
       this.start();
       this.fadeTo(this.muted ? 0 : this.targetVolume, 1200);
+      this.notify();
     });
   }
 
@@ -88,13 +151,5 @@ export class AudioPlayer {
       }
     };
     this.fadeFrame = requestAnimationFrame(step);
-  }
-
-  get playing(): boolean {
-    return Boolean(this.currentSrc) && !this.el.paused && !this.muted;
-  }
-
-  get source(): string | null {
-    return this.currentSrc;
   }
 }

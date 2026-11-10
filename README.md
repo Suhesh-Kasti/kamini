@@ -71,7 +71,27 @@ questions:
 - `music_override`: a path under `public/`, or `null`.
 - `text_by_theme`: optional wording per preset.
 
-Behavior names: `runaway`, `shrink`, `grow`, `swap_label`, `swap_roles`, `dodge_then_accept`, `ghost`, `morph`, `disabled_polite`, `multi_stage`, `escape_forever`, `mirror`, `peek_a_boo`, `jelly`, `sneeze`, `hide_behind`, `puddle`, `spin_away`, `unravel`, `chase`, `sleepy`, `pop_up`, `thread_reel`.
+Behavior names: `runaway`, `teleport_puff`, `peel`, `imitate`, `chase_correct`, `shrink_into_correct`, `tickle`, `flee_and_return`, `shrink`, `grow`, `swap_label`, `swap_roles`, `dodge_then_accept`, `ghost`, `morph`, `disabled_polite`, `multi_stage`, `escape_forever`, `mirror`, `peek_a_boo`, `jelly`, `sneeze`, `hide_behind`, `puddle`, `spin_away`, `unravel`, `chase`, `sleepy`, `pop_up`, `thread_reel`.
+
+### Other question types
+
+A question can use a physical interaction instead of buttons. Set `type` and add an `interaction` block.
+
+```yaml
+  - id: "find_it"
+    type: "catch"
+    text: "Catch the little camera before it gets away."
+    interaction:
+      target: "the little camera"
+      hint: "caught it. try the next one."
+      next: "second_pick"
+```
+
+- `catch`: a small target drifts around the stage. Tap it to reveal the hint and continue.
+- `drag`: drag one of the labelled items into the target basket. Mark the right item with `correct: true`.
+- `scratch`: a canvas scratch card over a photo. Set `image`, `reveal`, and `caption`. A keyboard-friendly reveal button is always present.
+
+The starter sequence uses a different primary interaction and button behavior for each step. Keep that habit when adding questions.
 
 Every behavior works with touch. On a phone, the tap behavior fires on pointer down, and pointer capture keeps activation reliable even after a button runs away.
 

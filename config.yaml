@@ -50,7 +50,7 @@ global:
 intro:
   line: "hey, trouble"
   subline: "I made you a small thing. Try not to delete it."
-  duration: 3000
+  duration: 1200
 
 # Shared whispers. A question can add its own list,
 # which takes priority. One is chosen at random per tap.
@@ -340,9 +340,9 @@ questions:
     buttons:
       - label: "delete them"
         role: "wrong"
-        on_hover: "runaway"
-        on_tap: "runaway"
-        on_click: "swap_label"
+        on_hover: "tickle"
+        on_tap: "tickle"
+        on_click: "teleport_puff"
         labels_cycle: ["delete them", "okay just one", "fine, neither", "I give up", "you are impossible"]
       - label: "I am not above bribery"
         role: "correct"
@@ -358,49 +358,34 @@ questions:
       - "you hate both. I can tell."
       - "the photos are not listening"
       - "this is a safe space. not really."
-    buttons:
-      - label: "the park one"
-        role: "wrong"
-        on_hover: "shrink"
-        on_tap: "jelly"
-        on_click: "jelly"
-      - label: "the laughing one"
-        role: "wrong"
-        on_hover: "peek_a_boo"
-        on_tap: "hide_behind"
-        on_click: "swap_label"
-        labels_cycle: ["the laughing one", "actually both", "I refuse", "this is entrapment"]
-      - label: "both. unfortunately."
-        role: "correct"
-        on_hover: "grow"
-        on_click: "swap_roles"
-        next: "yarn_picker"
+    type: "catch"
+    interaction:
+      target: "the little camera"
+      hint: "caught it. it is both. obviously."
+      next: "yarn_picker"
     transition_out: "theme"
 
   - id: "yarn_picker"
     eyebrow: "a brief distraction"
     text: "Fine. We can look at yarn for one minute. The photos are still staying, by the way."
-    theme_override: "cozy_crochet"
     whispers:
       - "the yarn will not save you"
       - "you are very good at changing the subject"
       - "one minute. I am timing you."
-    buttons:
-      - label: "dusty rose"
-        role: "wrong"
-        on_hover: "runaway"
-        on_tap: "unravel"
-        on_click: "unravel"
-      - label: "warm sage"
-        role: "correct"
-        on_hover: "grow"
-        on_click: "grow"
-        next: "lock_screen"
-      - label: "butter cream"
-        role: "wrong"
-        on_hover: "peek_a_boo"
-        on_tap: "unravel"
-        on_click: "unravel"
+    type: "drag"
+    interaction:
+      target: "the basket"
+      items:
+        - label: "dusty rose"
+          color: "#c98a92"
+        - label: "warm sage"
+          color: "#9aa37f"
+          correct: true
+        - label: "butter cream"
+          color: "#e8d6a3"
+      success: "warm sage. good taste. the photos are still staying."
+      hint: "the warm one. the one that matches your patience."
+      next: "lock_screen"
     transition_out: "theme"
 
   - id: "lock_screen"
@@ -410,23 +395,12 @@ questions:
       - "you are trying to calculate how to steal my phone"
       - "the photo is load-bearing"
       - "I can see you plotting"
-    buttons:
-      - label: "change it"
-        role: "wrong"
-        on_hover: "peek_a_boo"
-        on_tap: "hide_behind"
-        on_click: "swap_label"
-        labels_cycle: ["change it", "please", "I am asking nicely", "okay, keep it"]
-      - label: "I will steal your phone"
-        role: "wrong"
-        on_hover: "shrink"
-        on_tap: "jelly"
-        on_click: "jelly"
-      - label: "worth it"
-        role: "correct"
-        on_hover: "grow"
-        on_click: "grow"
-        next: "wallpaper"
+    type: "scratch"
+    interaction:
+      image: "images/portrait-02.webp"
+      reveal: "the laughing one. you hate it. I know."
+      caption: "lock screen. no regrets."
+      next: "wallpaper"
     transition_out: "theme"
 
   - id: "wallpaper"
@@ -439,15 +413,15 @@ questions:
     buttons:
       - label: "delete it"
         role: "wrong"
-        on_hover: "sneeze"
-        on_tap: "sneeze"
-        on_click: "sneeze"
+        on_hover: "tickle"
+        on_tap: "tickle"
+        on_click: "peel"
         labels_cycle: ["delete it", "I will delete it myself", "give me the phone", "I am not joking"]
       - label: "I am telling everyone"
         role: "wrong"
-        on_hover: "shrink"
-        on_tap: "jelly"
-        on_click: "jelly"
+        on_hover: "tickle"
+        on_tap: "tickle"
+        on_click: "imitate"
       - label: "keep it"
         role: "correct"
         on_hover: "grow"
@@ -483,9 +457,9 @@ questions:
         next: "ending"
       - label: "I will hide the printer"
         role: "wrong"
-        on_hover: "sleepy"
-        on_tap: "sleepy"
-        on_click: "sleepy"
+        on_hover: "tickle"
+        on_tap: "tickle"
+        on_click: "shrink_into_correct"
         labels_cycle: ["I will hide the printer", "where is the printer", "I am unplugging it", "fine, print them"]
     transition_out: "theme"
 

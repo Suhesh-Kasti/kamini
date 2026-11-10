@@ -53,6 +53,7 @@ function safeOffset(btn: HTMLButtonElement, maxX = 90, maxY = 56): { x: number; 
 
 function killTransforms(btn: HTMLButtonElement): void {
   gsap.killTweensOf(btn);
+  delete btn.dataset.dodging;
   btn.classList.remove("answer--glow");
 }
 
@@ -101,9 +102,15 @@ function startDodge(btn: HTMLButtonElement, ctx: BehaviorContext): Promise<void>
   }
 
   const offset = safeOffset(btn, 100, 64);
+  btn.dataset.dodging = "1";
   return new Promise((resolve) => {
     gsap
-      .timeline({ onComplete: resolve })
+      .timeline({
+        onComplete: () => {
+          delete btn.dataset.dodging;
+          resolve();
+        },
+      })
       .to(btn, {
         x: offset.x,
         y: offset.y,
@@ -509,6 +516,218 @@ const behaviors: Record<string, Behavior> = {
     });
     return "consume";
   },
+
+  async teleport_puff(ctx) {
+    if (!ctx.reduced) {
+      const rect = ctx.btn.getBoundingClientRect();
+      const puff = document.createElement("span");
+      puff.className = "puff";
+      puff.style.left = `${rect.left + rect.width / 2}px`;
+      puff.style.top = `${rect.top + rect.height / 2}px`;
+      document.body.append(puff);
+      for (let index = 0; index < 7; index += 1) {
+        const dot = document.createElement("span");
+        dot.className = "puff-dot";
+        dot.style.left = `${rect.left + rect.width / 2}px`;
+        dot.style.top = `${rect.top + rect.height / 2}px`;
+        document.body.append(dot);
+        gsap.to(dot, {
+          x: gsap.utils.random(-58, 58),
+          y: gsap.utils.random(-42, 42),
+          scale: gsap.utils.random(0.4, 1.4),
+          opacity: 0,
+          duration: 0.55,
+          ease: "power2.out",
+          onComplete: () => dot.remove(),
+        });
+      }
+      window.setTimeout(() => puff.remove(), 700);
+    }
+    await timelineTo((timeline) => {
+      timeline.to(ctx.btn, {
+        scale: 0.4,
+        opacity: 0,
+        duration: ctx.reduced ? 0.08 : 0.18,
+        ease: "power2.in",
+      });
+    });
+    const offset = safeOffset(ctx.btn, 96, 60);
+    gsap.set(ctx.btn, {
+      x: offset.x,
+      y: offset.y,
+      rotate: gsap.utils.random(-8, 8),
+      scale: 0.7,
+      opacity: 1,
+    });
+    ctx.whisper(pickLine(ctx, "teleport", "it is over there now. rude."));
+    await timelineTo((timeline) => {
+      timeline.to(ctx.btn, {
+        scale: 1,
+        duration: ctx.reduced ? 0.1 : 0.42,
+        ease: "back.out(1.9)",
+      });
+    });
+    window.setTimeout(() => {
+      gsap.to(ctx.btn, { x: 0, y: 0, rotate: 0, duration: 0.5, ease: EASE.pillow });
+    }, 1200);
+    return "consume";
+  },
+
+  async peel(ctx) {
+    if (ctx.reduced) {
+      await tweenTo(ctx.btn, { opacity: 0.45, duration: 0.12, yoyo: true, repeat: 1 });
+      return "consume";
+    }
+    await timelineTo((timeline) => {
+      timeline
+        .to(ctx.btn, { rotate: -5, y: -6, duration: 0.16, ease: "power2.out" })
+        .to(ctx.btn, {
+          rotate: 15,
+          x: 10,
+          y: 5,
+          scaleY: 0.88,
+          skewX: -8,
+          duration: 0.28,
+          ease: "power2.in",
+        })
+        .to(ctx.btn, { opacity: 0.22, rotate: 24, x: 16, y: 10, duration: 0.18 })
+        .to(ctx.btn, {
+          opacity: 1,
+          rotate: 0,
+          x: 0,
+          y: 0,
+          scaleY: 1,
+          skewX: 0,
+          duration: 0.48,
+          ease: EASE.pillow,
+        });
+    });
+    ctx.whisper(pickLine(ctx, "peel", "it peeled. that did not help you."));
+    return "consume";
+  },
+
+  async imitate(ctx) {
+    const other = ctx.buttons.find(
+      (candidate) => candidate !== ctx.btn && candidate.dataset.role === "correct"
+    );
+    if (!other) return "pass";
+    const mine = labelOf(ctx.btn);
+    const theirs = labelOf(other);
+    await timelineTo((timeline) => {
+      timeline
+        .to(labelEl(ctx.btn), { y: -5, opacity: 0, duration: 0.12, ease: "power2.in" })
+        .add(() => setLabel(ctx.btn, theirs))
+        .fromTo(labelEl(ctx.btn), { y: 6, opacity: 0 }, { y: 0, opacity: 1, duration: 0.22 });
+    });
+    ctx.btn.classList.add("is-imitating");
+    await timelineTo((timeline) => {
+      timeline
+        .to(ctx.btn, { rotate: 3, duration: 0.09, yoyo: true, repeat: 3, ease: "sine.inOut" })
+        .to(ctx.btn, { rotate: 0, duration: 0.1 });
+    });
+    ctx.btn.classList.remove("is-imitating");
+    await timelineTo((timeline) => {
+      timeline
+        .to(labelEl(ctx.btn), { y: -5, opacity: 0, duration: 0.1 })
+        .add(() => setLabel(ctx.btn, mine))
+        .fromTo(labelEl(ctx.btn), { y: 5, opacity: 0 }, { y: 0, opacity: 1, duration: 0.2 });
+    });
+    ctx.whisper(pickLine(ctx, "imitate", "it tried on the right answer. it did not fit."));
+    return "consume";
+  },
+
+  async chase_correct(ctx) {
+    const other = ctx.buttons.find(
+      (candidate) => candidate !== ctx.btn && candidate.dataset.role === "correct"
+    );
+    if (!other || ctx.reduced) {
+      ctx.whisper(pickLine(ctx, "chase", "the right one is still the right one."));
+      return "consume";
+    }
+    const offset = safeOffset(ctx.btn, 78, 42);
+    ctx.btn.dataset.state = "moving";
+    await timelineTo((timeline) => {
+      timeline
+        .to(ctx.btn, { x: offset.x, y: offset.y, rotate: 6, duration: 0.3, ease: "power2.out" })
+        .to(other, { x: offset.x * 0.55, y: offset.y * 0.4, duration: 0.28, ease: "power2.out" }, "<")
+        .to(ctx.btn, { x: 0, y: 0, rotate: 0, duration: 0.42, ease: "power2.inOut" })
+        .to(other, { x: 0, y: 0, duration: 0.42, ease: "power2.inOut" }, "<");
+    });
+    delete ctx.btn.dataset.state;
+    gsap.set(other, { x: 0, y: 0 });
+    ctx.whisper(pickLine(ctx, "chase", "it chased the wrong one back to you."));
+    return "consume";
+  },
+
+  async shrink_into_correct(ctx) {
+    const other = ctx.buttons.find(
+      (candidate) => candidate !== ctx.btn && candidate.dataset.role === "correct"
+    );
+    if (!other || ctx.reduced) {
+      ctx.btn.dataset.state = "gone";
+      gsap.to(ctx.btn, { scale: 0.7, opacity: 0.3, duration: 0.2 });
+      return "consume";
+    }
+    const btnRect = ctx.btn.getBoundingClientRect();
+    const otherRect = other.getBoundingClientRect();
+    const dx =
+      otherRect.left + otherRect.width / 2 - (btnRect.left + btnRect.width / 2);
+    const dy =
+      otherRect.top + otherRect.height / 2 - (btnRect.top + btnRect.height / 2);
+    ctx.btn.dataset.state = "moving";
+    await timelineTo((timeline) => {
+      timeline
+        .to(ctx.btn, {
+          x: dx,
+          y: dy,
+          scale: 0.16,
+          opacity: 0,
+          duration: 0.55,
+          ease: "power3.inOut",
+        })
+        .to(other, { scale: 1.08, duration: 0.18, ease: EASE.lift }, "-=0.2")
+        .to(other, { scale: 1, duration: 0.3, ease: EASE.pillow });
+    });
+    ctx.btn.dataset.state = "gone";
+    ctx.btn.style.pointerEvents = "none";
+    gsap.set(other, { x: 0, y: 0 });
+    ctx.whisper(pickLine(ctx, "merge", "it gave up and joined the right answer."));
+    return "consume";
+  },
+
+  async tickle(ctx) {
+    if (!ctx.reduced) {
+      await timelineTo((timeline) => {
+        timeline
+          .to(ctx.btn, { rotate: 4, duration: 0.07, yoyo: true, repeat: 5, ease: "sine.inOut" })
+          .to(ctx.btn, { rotate: 0, duration: 0.1 });
+      });
+    }
+    ctx.whisper(pickLine(ctx, "tickle", "that tickled. it is still the wrong one."));
+    return "consume";
+  },
+
+  async flee_and_return(ctx) {
+    const offset = safeOffset(ctx.btn, 100, 58);
+    const original = labelOf(ctx.btn);
+    await timelineTo((timeline) => {
+      timeline
+        .to(ctx.btn, {
+          x: offset.x,
+          y: offset.y,
+          rotate: gsap.utils.random(-6, 6),
+          duration: ctx.reduced ? 0.1 : 0.35,
+          ease: "power2.out",
+        })
+        .to(ctx.btn, { x: 0, y: 0, rotate: 0, duration: ctx.reduced ? 0.1 : 0.7, ease: EASE.pillow }, "+=0.9");
+    });
+    setLabel(ctx.btn, "okay, I am back");
+    window.setTimeout(() => {
+      setLabel(ctx.btn, original);
+    }, 1600);
+    ctx.whisper(pickLine(ctx, "return", "it came back. it missed you."));
+    return "consume";
+  },
 };
 
 const RESETS_TRANSFORM = new Set([
@@ -533,6 +752,13 @@ const RESETS_TRANSFORM = new Set([
   "sleepy",
   "pop_up",
   "thread_reel",
+  "teleport_puff",
+  "peel",
+  "imitate",
+  "chase_correct",
+  "shrink_into_correct",
+  "tickle",
+  "flee_and_return",
 ]);
 
 export async function runBehavior(

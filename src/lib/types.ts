@@ -11,15 +11,49 @@ export interface QuestionButton {
   note?: string;
 }
 
+export type QuestionType = "buttons" | "catch" | "drag" | "scratch";
+
+export interface CatchInteraction {
+  target: string;
+  hint: string;
+  next?: string;
+}
+
+export interface DragItem {
+  label: string;
+  correct?: boolean;
+  color?: string;
+}
+
+export interface DragInteraction {
+  target: string;
+  items: DragItem[];
+  success?: string;
+  hint?: string;
+  next?: string;
+}
+
+export interface ScratchInteraction {
+  image?: string;
+  reveal: string;
+  caption?: string;
+  next?: string;
+}
+
+export type QuestionInteraction = CatchInteraction | DragInteraction | ScratchInteraction;
+
 export interface Question {
   id: string;
+  type?: QuestionType;
   eyebrow?: string;
   text: string;
   text_by_theme?: Record<string, string>;
   theme_override?: string;
   music_override?: string | null;
   whispers?: string[];
-  buttons: QuestionButton[];
+  buttons?: QuestionButton[];
+  interaction?: QuestionInteraction;
+  next?: string;
   transition_out?: string;
 }
 

@@ -3,17 +3,18 @@ import { getConfig, themeFor } from "./config";
 import { readPrefs, patchPrefs, type LocalPrefs } from "./storage";
 import {
   EASE,
+  canBlur,
   initEases,
   prefersReducedMotion,
   pulse,
   questionEntrance,
   sceneExit,
   splitWords,
-  wait,
 } from "./animations";
 import { cycleLabel, resetHover, runBehavior, type BehaviorPhase } from "./behaviors";
 import { playEnding } from "./endings";
 import { AudioPlayer } from "./audio";
+import { mountInteraction, type InteractionCleanup } from "./interactions";
 import type { Question, QuestionButton, Theme } from "../lib/types";
 import type { ThreeSceneApi } from "./three-scene";
 
@@ -33,6 +34,8 @@ function required<T extends Element = HTMLElement>(selector: string): T {
 }
 
 let prefs: LocalPrefs = readPrefs();
+let preferredTheme =
+  prefs.theme && config.themes[prefs.theme] ? prefs.theme : config.active_theme;
 const audio = new AudioPlayer();
 const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 const reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -43,10 +46,25 @@ let currentThemeId = "";
 let currentTheme: Theme = config.themes[config.active_theme] ?? Object.values(config.themes)[0];
 let currentSceneKey = "";
 let currentButtons: HTMLButtonElement[] = [];
+let interactionCleanup: InteractionCleanup | null = null;
 let transitionToken = 0;
 let locked = false;
 let ended = false;
 let activating = false;
+type SiteState =
+  | "loading"
+  | "question_active"
+  | "transitioning"
+  | "ending_active"
+  | "settings_open"
+  | "theme_switching";
+let siteState: SiteState = "loading";
+let stateTimer: number | null = null;
+let panelReturnState: SiteState = "question_active";
+let pendingTheme: string | null = null;
+let themeSwitching = false;
+const debugEnabled = new URLSearchParams(location.search).has("debug");
+let debugEl: HTMLElement | null = null;
 let lastWhisper = "";
 let lastEndingTheme = prefs.lastEndingTheme ?? config.active_theme;
 let panelOpen = false;
@@ -66,14 +84,144 @@ const canvas = document.getElementById("three-stage") as HTMLCanvasElement | nul
 const introEl = qs("#intro");
 const introLine = qs("[data-intro-line]");
 const introSub = qs("[data-intro-sub]");
+const themeVeil = qs<HTMLElement>("[data-theme-veil]");
+
+function timer(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 function preferredThemeId(): string {
-  return prefs.theme && config.themes[prefs.theme] ? prefs.theme : config.active_theme;
+  return preferredTheme;
 }
 
 function effectiveThemeId(question: Question): string {
-  if (question.theme_override && config.themes[question.theme_override]) return question.theme_override;
-  return preferredThemeId();
+  if (question.theme_override && config.themes[question.theme_override]) {
+    return question.theme_override;
+  }
+  return preferredTheme;
+}
+
+function ensureDebugOverlay(): void {
+  if (!debugEnabled || debugEl) return;
+  debugEl = document.createElement("div");
+  debugEl.className = "debug-overlay";
+  debugEl.setAttribute("aria-hidden", "true");
+  document.body.append(debugEl);
+  updateDebug();
+}
+
+function updateDebug(): void {
+  if (!debugEl) return;
+  const audioState = audio.hasError
+    ? "error"
+    : audio.playing
+      ? "playing"
+      : audio.waitingForGesture
+        ? "waiting"
+        : audio.hasTrack
+          ? "ready"
+          : "none";
+  debugEl.textContent = `state ${siteState}
+theme ${preferredTheme} (${currentThemeId || "-"})
+question ${currentQuestion?.id ?? "-"}
+pending ${pendingTheme ?? "-"}
+audio ${audioState}
+activating ${activating} locked ${locked}
+scene ${currentSceneKey || "-"}`;
+}
+
+function setState(next: SiteState, timeoutMs = 0, fallback?: () => void): void {
+  if (stateTimer !== null) {
+    clearTimeout(stateTimer);
+    stateTimer = null;
+  }
+  siteState = next;
+  locked = next !== "question_active";
+  updateDebug();
+  if (timeoutMs > 0 && fallback) {
+    stateTimer = window.setTimeout(() => {
+      if (siteState === next) {
+        console.warn("[state] timeout", next);
+        fallback();
+      }
+    }, timeoutMs);
+  }
+}
+
+function forceRevealQuestion(): void {
+  endingScene.hidden = true;
+  questionScene.hidden = false;
+  gsap.set(questionScene, { clearProps: "filter,opacity" });
+  questionScene
+    .querySelectorAll<HTMLElement>(".word, .answer, .interaction, .eyebrow, .whisper")
+    .forEach((element) => gsap.set(element, { opacity: 1, filter: "none" }));
+  setState("question_active");
+  if (pendingTheme) {
+    const next = pendingTheme;
+    pendingTheme = null;
+    void switchTheme(next);
+    return;
+  }
+  window.setTimeout(() => questionEl.focus({ preventScroll: true }), 60);
+}
+
+function recoverQuestion(token: number): void {
+  if (token !== transitionToken) return;
+  console.warn("[recovery] forcing the question visible");
+  forceRevealQuestion();
+}
+
+function showThemeVeil(id: string): void {
+  if (!themeVeil) return;
+  const theme = themeFor(config, id);
+  themeVeil.dataset.veilTheme = id;
+  themeVeil.style.setProperty("--veil-paper", theme.colors.paper);
+  themeVeil.style.setProperty("--veil-accent", theme.colors.primary);
+  themeVeil.style.setProperty("--veil-ink", theme.colors.ink);
+  themeVeil.setAttribute("aria-hidden", "false");
+  themeVeil.classList.add("is-open");
+}
+
+function hideThemeVeil(): void {
+  if (!themeVeil) return;
+  themeVeil.classList.remove("is-open");
+  window.setTimeout(() => themeVeil.setAttribute("aria-hidden", "true"), 240);
+}
+
+async function switchTheme(id: string): Promise<void> {
+  if (themeSwitching) {
+    pendingTheme = id;
+    return;
+  }
+  themeSwitching = true;
+  setState("theme_switching", 2800, () => {
+    hideThemeVeil();
+    themeSwitching = false;
+    forceRevealQuestion();
+  });
+  showThemeVeil(id);
+  applyTheme(id);
+  await timer(180);
+  gsap.killTweensOf(questionScene.querySelectorAll("*"));
+  gsap.killTweensOf(endingHost.querySelectorAll("*"));
+  const showingEnding = !endingScene.hidden;
+  if (showingEnding) {
+    void showEnding(id);
+    await timer(520);
+  } else {
+    await renderQuestion(currentQuestion.id, true);
+    await timer(220);
+  }
+  hideThemeVeil();
+  themeSwitching = false;
+  if (siteState === "theme_switching") {
+    setState(showingEnding ? "ending_active" : "question_active");
+  }
+  if (pendingTheme && pendingTheme !== id) {
+    const next = pendingTheme;
+    pendingTheme = null;
+    void switchTheme(next);
+  }
 }
 
 function motionReduced(): boolean {
@@ -149,6 +297,7 @@ function applyTheme(themeId: string): Theme {
     sceneApi.setTheme(theme, motionReduced());
   }
 
+  updateDebug();
   return theme;
 }
 
@@ -435,7 +584,7 @@ async function runPhase(
   question: Question,
   phase: BehaviorPhase
 ): Promise<void> {
-  if (!name || locked) return;
+  if (!name || locked || siteState !== "question_active") return;
   await runBehavior(name, {
     btn,
     def,
@@ -470,7 +619,7 @@ async function wrongFeedback(def: QuestionButton, btn: HTMLButtonElement, questi
   addClawMark(btn);
   bumpCoin();
 
-  question.buttons.forEach((buttonDef, index) => {
+  (question.buttons ?? []).forEach((buttonDef, index) => {
     const candidate = currentButtons[index];
     if (!candidate || candidate.dataset.role !== "correct") return;
     if ([buttonDef.on_hover, buttonDef.on_tap, buttonDef.on_click].includes("pop_up")) {
@@ -489,13 +638,20 @@ async function wrongFeedback(def: QuestionButton, btn: HTMLButtonElement, questi
 }
 
 async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Question): Promise<void> {
-  if (locked || ended || activating) return;
+  if (debugEnabled) console.info("[activate]", def.label, siteState, ended, activating, btn.dataset.role);
+  if (siteState !== "question_active" || ended || activating) return;
   if (btn.dataset.state === "gone") return;
   activating = true;
+  updateDebug();
+  const watchdog = window.setTimeout(() => {
+    if (!activating) return;
+    activating = false;
+    console.warn("[activation] timed out");
+  }, 2600);
   try {
     bumpCoin();
     if (btn.dataset.role === "correct") triggerShimmer();
-    const result = await runBehavior(def.on_click, {
+    const behavior = runBehavior(def.on_click, {
       btn,
       def,
       buttons: currentButtons,
@@ -505,6 +661,13 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
       whisper: showWhisper,
       lines: config.behavior_lines,
     });
+    const timeout = btn.dataset.role === "correct" ? 1600 : 2200;
+    let result: string = await Promise.race([behavior, timer(timeout).then(() => "timeout")]);
+    if (debugEnabled) console.info("[behavior result]", def.on_click, result);
+    if (result === "timeout") {
+      console.warn("[behavior] timed out", def.on_click);
+      result = btn.dataset.role === "correct" ? "advance" : "pass";
+    }
 
     if (result === "consume") {
       if (btn.dataset.role !== "correct") await wrongFeedback(def, btn, question);
@@ -513,20 +676,23 @@ async function activate(def: QuestionButton, btn: HTMLButtonElement, question: Q
 
     const isCorrect = btn.dataset.role === "correct";
     if (result === "advance" || isCorrect) {
+      setState("transitioning", 2800, () => forceRevealQuestion());
       if (isCorrect) {
         btn.classList.add("answer--glow");
-        await pulse(btn, motionReduced());
+        btn.dataset.ready = "true";
+        await Promise.race([pulse(btn, motionReduced()), timer(700)]);
       }
-      locked = true;
       const target = def.next ?? nextQuestionId(question.id);
-      await wait(motionReduced() ? 0.03 : 0.14);
+      await timer(motionReduced() ? 30 : 140);
       await advance(target, question);
       return;
     }
 
     await wrongFeedback(def, btn, question);
   } finally {
+    clearTimeout(watchdog);
     activating = false;
+    updateDebug();
   }
 }
 
@@ -546,44 +712,87 @@ async function advance(target: string | undefined, question: Question): Promise<
   await renderQuestion(resolved);
 }
 
+function completeInteraction(question: Question, next?: string): void {
+  if (siteState !== "question_active") return;
+  setState("transitioning", 2800, () => forceRevealQuestion());
+  const target = next ?? question.interaction?.next ?? nextQuestionId(question.id);
+  void advance(target, question);
+}
+
 async function renderQuestion(id: string, skipExit = false): Promise<void> {
   const question = findQuestion(id);
   if (!question) return;
   const token = ++transitionToken;
   const exitMotion = currentTheme.motion;
-  locked = true;
+  setState("transitioning", 3000, () => recoverQuestion(token));
 
   if (!skipExit) {
-    await sceneExit(questionScene, exitMotion, motionReduced());
+    await Promise.race([sceneExit(questionScene, exitMotion, motionReduced()), timer(1200)]);
   }
   if (token !== transitionToken) return;
 
   currentQuestion = question;
+  updateDebug();
   const themeId = effectiveThemeId(question);
   const theme = applyTheme(themeId);
 
   endingScene.hidden = true;
   questionScene.hidden = false;
+  if (window.scrollY > 4) {
+    window.scrollTo({ top: 0, behavior: motionReduced() ? "auto" : "smooth" });
+  }
   if (canvas) gsap.to(canvas, { opacity: 1, duration: motionReduced() ? 0.15 : 0.75, ease: "power2.out" });
   gsap.set(questionScene, { clearProps: "filter,opacity" });
 
   eyebrowEl.textContent = question.eyebrow ?? "";
   const text = question.text_by_theme?.[themeId] ?? question.text;
   splitWords(questionEl, text);
+  interactionCleanup?.();
+  interactionCleanup = null;
   answersEl.replaceChildren();
-  currentButtons = question.buttons.map((def, index) => createButton(def, index, question));
+  if ((question.type ?? "buttons") === "buttons") {
+    currentButtons = (question.buttons ?? []).map((def, index) => createButton(def, index, question));
+  } else {
+    currentButtons = [];
+    interactionCleanup = mountInteraction(question, answersEl, {
+      canInteract: () => siteState === "question_active" && !locked,
+      complete: (next) => completeInteraction(question, next),
+      whisper: showWhisper,
+      reduced: motionReduced(),
+      theme,
+    });
+  }
   whisperEl.textContent = "";
   gsap.set(whisperEl, { opacity: 0 });
 
   updateMusic(question, theme);
-  questionEntrance(questionScene, { reduced: motionReduced(), motion: theme.motion });
+  const entrance = questionEntrance(questionScene, { reduced: motionReduced(), motion: theme.motion });
+  let entranceDone = false;
+  entrance.eventCallback("onComplete", () => {
+    entranceDone = true;
+    if (token !== transitionToken) return;
+    if (pendingTheme) {
+      const next = pendingTheme;
+      pendingTheme = null;
+      void switchTheme(next);
+      return;
+    }
+    setState("question_active");
+  });
+  setState("question_active");
+  window.setTimeout(() => {
+    if (token !== transitionToken || entranceDone) return;
+    if (siteState !== "question_active" && siteState !== "transitioning") return;
+    console.warn("[recovery] question entrance was slow");
+    forceRevealQuestion();
+  }, 1500);
 
   ended = false;
-  locked = false;
+  updateDebug();
 
   window.setTimeout(() => {
-    if (!questionScene.hidden) questionEl.focus({ preventScroll: true });
-  }, 120);
+    if (!questionScene.hidden && siteState === "question_active") questionEl.focus({ preventScroll: true });
+  }, 160);
 }
 
 function buildEndingActions(): void {
@@ -614,22 +823,52 @@ function buildEndingActions(): void {
   endingActions.append(replay, restart);
 }
 
+function revealEndingActions(): void {
+  gsap.to(endingActions, {
+    opacity: 1,
+    duration: 0.8,
+    ease: EASE.hush,
+    onComplete: () => endingActions.classList.add("is-ready"),
+    overwrite: "auto",
+  });
+}
+
+function forceEndingVisible(): void {
+  questionScene.hidden = true;
+  endingScene.hidden = false;
+  endingHost
+    .querySelectorAll<HTMLElement>("[data-note], .note-paper, .note-text, .note-sign")
+    .forEach((element) => {
+      element.style.visibility = "visible";
+      element.style.opacity = "1";
+    });
+  revealEndingActions();
+  setState("ending_active");
+}
+
 async function showEnding(themeId = preferredThemeId()): Promise<void> {
-  locked = true;
   ended = true;
+  transitionToken += 1;
+  interactionCleanup?.();
+  interactionCleanup = null;
   hideInstall();
+  setState("ending_active", 12000, () => forceEndingVisible());
   const theme = applyTheme(themeId);
   audio.setTrack(resolveAudio(theme.music ?? config.global.music));
 
   if (!questionScene.hidden) {
-    await sceneExit(questionScene, theme.motion, motionReduced());
+    await Promise.race([sceneExit(questionScene, theme.motion, motionReduced()), timer(1200)]);
   }
   if (canvas) gsap.to(canvas, { opacity: 0, duration: motionReduced() ? 0.2 : 0.7, ease: "power2.in" });
   questionScene.hidden = true;
   endingScene.hidden = false;
   endingScene.classList.remove("has-photo");
+  if (window.scrollY > 4) {
+    window.scrollTo({ top: 0, behavior: motionReduced() ? "auto" : "smooth" });
+  }
   const keepsake = qs<HTMLButtonElement>("[data-sticker-keepsake]");
   if (keepsake) keepsake.hidden = true;
+  gsap.killTweensOf(endingHost.querySelectorAll("*"));
   endingHost.replaceChildren();
   endingActions.classList.remove("is-ready");
 
@@ -637,33 +876,40 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   const template =
     endingScene.querySelector<HTMLTemplateElement>(`template[data-ending="${animation}"]`) ??
     endingScene.querySelector<HTMLTemplateElement>("template");
-  if (!template) return;
+  if (!template) {
+    forceEndingVisible();
+    return;
+  }
 
   endingHost.append(template.content.cloneNode(true));
   const root = endingHost.querySelector<HTMLElement>("[data-ending-scene]");
-  if (!root) return;
+  if (!root) {
+    forceEndingVisible();
+    return;
+  }
 
   populateHeroPhoto(root, motionReduced());
   buildEndingActions();
   gsap.set(endingActions, { opacity: 0 });
 
-  await playEnding(animation, {
-    root,
-    note: theme.ending.note,
-    signature: theme.ending.signature,
-    reduced: motionReduced(),
-    theme,
-  });
+  try {
+    await playEnding(animation, {
+      root,
+      note: theme.ending.note,
+      signature: theme.ending.signature,
+      reduced: motionReduced(),
+      theme,
+    });
+  } catch (error) {
+    console.warn("[ending] animation failed", error);
+  }
 
-  gsap.to(endingActions, {
-    opacity: 1,
-    duration: 0.8,
-    ease: EASE.hush,
-    onComplete: () => endingActions.classList.add("is-ready"),
-  });
+  revealEndingActions();
   lastEndingTheme = themeId;
   prefs = patchPrefs({ lastEndingTheme: themeId });
   showStickerKeepsake();
+  setState("ending_active");
+  updateDebug();
 
   if (config.global.install_prompt && !prefs.installDismissed) {
     gsap.delayedCall(1.8, showInstall);
@@ -675,13 +921,14 @@ function restartExperience(): void {
   hideInstall();
   const sticker = qs<HTMLButtonElement>("[data-sticker-keepsake]");
   if (sticker) sticker.hidden = true;
+  interactionCleanup?.();
+  interactionCleanup = null;
   endingScene.hidden = true;
   questionScene.hidden = false;
-  ended = false;
-  locked = false;
-  activating = false;
-  if (canvas) gsap.to(canvas, { opacity: 1, duration: 0.7, ease: "power2.out" });
+  if (canvas) gsap.to(canvas, { opacity: 1, duration: motionReduced() ? 0.15 : 0.7, ease: "power2.out" });
   gsap.set(questionScene, { clearProps: "filter,opacity" });
+  ended = false;
+  activating = false;
   void renderQuestion(config.questions[0].id, true);
 }
 
@@ -719,12 +966,13 @@ function playIntro(): Promise<void> {
     introEl.addEventListener("pointerdown", skip, { once: true });
     introEl.addEventListener("keydown", skip);
 
+    const blur = canBlur() && !reduced;
     gsap
       .timeline()
       .fromTo(
         introLine,
-        { autoAlpha: 0, y: 24, filter: "blur(10px)" },
-        { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: reduced ? 0.4 : 1.2, ease: EASE.pillow }
+        { autoAlpha: 0, y: 24, ...(blur ? { filter: "blur(10px)" } : {}) },
+        { autoAlpha: 1, y: 0, ...(blur ? { filter: "blur(0px)" } : {}), duration: reduced ? 0.4 : 1.2, ease: EASE.pillow }
       )
       .fromTo(
         introSub,
@@ -760,25 +1008,49 @@ function bindMusic(): void {
   if (!toggle) return;
 
   const update = () => {
+    const hasTrack = audio.hasTrack;
     const muted = prefs.muted ?? false;
-    toggle.setAttribute("aria-pressed", String(muted));
-    toggle.setAttribute("aria-label", muted ? "turn music on" : "turn music off");
-    toggle.classList.toggle("is-playing", !muted && audio.playing);
+    const playing = audio.playing;
+    const waiting = hasTrack && !playing && !muted && !audio.hasError;
+    toggle.classList.toggle("is-playing", playing && !muted);
+    toggle.classList.toggle("is-waiting", waiting);
+    toggle.classList.toggle("is-unavailable", !hasTrack || audio.hasError);
+    toggle.disabled = !hasTrack || audio.hasError;
+    toggle.setAttribute("aria-pressed", String(muted || !hasTrack));
+    toggle.setAttribute(
+      "aria-label",
+      !hasTrack || audio.hasError
+        ? "music unavailable"
+        : muted
+          ? "turn music on"
+          : playing
+            ? "turn music off"
+            : "start music"
+    );
+    updateDebug();
   };
 
+  audio.onState(update);
   update();
   toggle.addEventListener("click", () => {
-    audio.unlock();
+    if (!audio.hasTrack || audio.hasError) return;
+    if (!audio.isMuted() && !audio.playing) {
+      audio.playNow();
+      update();
+      return;
+    }
     prefs = patchPrefs({ muted: !(prefs.muted ?? false) });
     audio.setMuted(prefs.muted ?? false);
     update();
   });
 
-  window.setInterval(update, 1400);
+  window.setInterval(update, 1200);
 }
 
 function bindGlobalGestures(): void {
-  const unlock = () => {
+  const unlock = (event: Event) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-music-toggle]")) return;
     audio.unlock();
     window.removeEventListener("pointerdown", unlock);
     window.removeEventListener("keydown", unlock);
@@ -834,19 +1106,32 @@ function applyPanelState(): void {
 }
 
 function selectTheme(id: string): void {
-  prefs = patchPrefs({ theme: id });
-  applyPanelState();
-  const showingEnding = !endingScene.hidden;
-  if (showingEnding) {
-    void showEnding(id);
-  } else {
-    void renderQuestion(currentQuestion.id);
+  const valid = config.themes[id] ? id : config.active_theme;
+  if (valid === preferredTheme) {
+    closePanel();
+    return;
   }
+  preferredTheme = valid;
+  prefs = patchPrefs({ theme: valid });
+  applyTheme(valid);
+  applyPanelState();
+  closePanel();
+  if (themeSwitching || siteState === "theme_switching" || siteState === "transitioning") {
+    pendingTheme = valid;
+    return;
+  }
+  void switchTheme(valid);
 }
 
 function openPanel(): void {
   if (panelOpen) return;
+  if (
+    siteState === "loading" ||
+    siteState === "transitioning" ||
+    siteState === "theme_switching"
+  ) return;
   panelOpen = true;
+  panelReturnState = ended ? "ending_active" : "question_active";
   lastFocus = document.activeElement as HTMLElement | null;
   applyPanelState();
   qs("#secret-backdrop")?.classList.add("is-open");
@@ -856,6 +1141,7 @@ function openPanel(): void {
   sheet?.removeAttribute("inert");
   document.getElementById("app")?.setAttribute("inert", "");
   document.addEventListener("keydown", onPanelKey);
+  setState("settings_open");
   window.setTimeout(() => qs<HTMLButtonElement>("[data-close-panel]")?.focus(), 120);
 }
 
@@ -869,6 +1155,7 @@ function closePanel(): void {
   sheet?.setAttribute("inert", "");
   document.getElementById("app")?.removeAttribute("inert");
   document.removeEventListener("keydown", onPanelKey);
+  setState(panelReturnState);
   lastFocus?.focus?.();
 }
 
@@ -1051,6 +1338,8 @@ function bindMotionPreference(): void {
 }
 
 async function start(): Promise<void> {
+  ensureDebugOverlay();
+  setState("loading");
   applyTheme(preferredThemeId());
   applyMotionPreference();
   audio.setVolume(prefs.volume ?? config.global.music_volume, false);
@@ -1063,12 +1352,27 @@ async function start(): Promise<void> {
   bindMotionPreference();
   bindRain();
   registerServiceWorker();
+  window.addEventListener("error", (event) => {
+    console.error("[app] uncaught", event.error ?? event.message);
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    console.error("[app] rejection", event.reason);
+  });
 
   const first = config.questions[0];
   if (!first) return;
 
+  window.setTimeout(() => {
+    if (siteState !== "loading") return;
+    console.warn("[recovery] intro did not finish");
+    if (introEl) introEl.hidden = true;
+    void renderQuestion(first.id, true);
+  }, 6000);
+
   await playIntro();
-  await renderQuestion(first.id, true);
+  if (siteState === "loading") {
+    await renderQuestion(first.id, true);
+  }
 
   gsap.delayedCall(2.2, () => void initThree());
 }

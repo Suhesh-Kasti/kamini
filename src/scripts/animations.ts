@@ -108,6 +108,10 @@ export function prepareNoteLines(el: HTMLElement, text: string, maxChars = 34): 
   return inners;
 }
 
+export function canBlur(): boolean {
+  return !window.matchMedia("(max-width: 720px), (pointer: coarse)").matches;
+}
+
 export function revealNoteWords(
   el: HTMLElement,
   options: { delay?: number; duration?: number; stagger?: number; y?: number; reduced?: boolean } = {}
@@ -118,13 +122,14 @@ export function revealNoteWords(
     timeline.fromTo(nodes, { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.01 });
     return timeline;
   }
+  const blur = canBlur();
   timeline.fromTo(
     nodes,
-    { opacity: 0, y: options.y ?? 12, filter: "blur(6px)" },
+    { opacity: 0, y: options.y ?? 12, ...(blur ? { filter: "blur(6px)" } : {}) },
     {
       opacity: 1,
       y: 0,
-      filter: "blur(0px)",
+      ...(blur ? { filter: "blur(0px)" } : {}),
       duration: options.duration ?? 0.55,
       stagger: options.stagger ?? 0.035,
       ease: EASE.pillow,
@@ -162,7 +167,7 @@ export function questionEntrance(
 ): gsap.core.Timeline {
   const eyebrow = root.querySelector<HTMLElement>("[data-eyebrow]");
   const words = root.querySelectorAll<HTMLElement>(".question .word");
-  const answers = root.querySelectorAll<HTMLElement>(".answer");
+  const answers = root.querySelectorAll<HTMLElement>(".answer, .interaction");
   const whisper = root.querySelector<HTMLElement>("[data-whisper]");
   const sheet = root.querySelector<HTMLElement>("[data-sheet]");
   const motion = options.motion ?? "pillow";
@@ -176,8 +181,13 @@ export function questionEntrance(
     return timeline;
   }
 
-  const wordsFrom: gsap.TweenVars = { opacity: 0, y: 22, filter: "blur(8px)" };
-  const wordsTo: gsap.TweenVars = { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.8, stagger: 0.055, ease };
+  const blurAllowed = canBlur() && !options.reduced;
+  const wordsFrom: gsap.TweenVars = { opacity: 0, y: 22 };
+  const wordsTo: gsap.TweenVars = { opacity: 1, y: 0, duration: 0.8, stagger: 0.055, ease };
+  if (blurAllowed) {
+    wordsFrom.filter = "blur(8px)";
+    wordsTo.filter = "blur(0px)";
+  }
   const answersFrom: gsap.TweenVars = { opacity: 0, y: 18, scale: 0.97 };
   const answersTo: gsap.TweenVars = { opacity: 1, y: 0, scale: 1, duration: 0.7, stagger: 0.07, ease };
   const eyebrowFrom: gsap.TweenVars = { opacity: 0, y: 8 };
@@ -242,6 +252,11 @@ export function questionEntrance(
     answersTo.ease = "back.out(1.8)";
   }
 
+  if (!blurAllowed) {
+    delete wordsFrom.filter;
+    delete wordsTo.filter;
+  }
+
   if (motion === "shimmer") {
     document.documentElement.classList.add("is-shimmer");
     gsap.delayedCall(1.2, () => document.documentElement.classList.remove("is-shimmer"));
@@ -266,11 +281,12 @@ export function sceneExit(
   isReduced = false
 ): Promise<void> {
   const words = root.querySelectorAll<HTMLElement>(".question .word");
-  const answers = root.querySelectorAll<HTMLElement>(".answer");
+  const answers = root.querySelectorAll<HTMLElement>(".answer, .interaction");
   const eyebrow = root.querySelector<HTMLElement>("[data-eyebrow]");
   const whisper = root.querySelector<HTMLElement>("[data-whisper]");
   const sheet = root.querySelector<HTMLElement>("[data-sheet]");
   const ease = motionEase(motion);
+  const blurAllowed = canBlur() && !isReduced;
 
   return new Promise((resolve) => {
     if (isReduced) {
@@ -281,7 +297,7 @@ export function sceneExit(
     const timeline = gsap.timeline({ onComplete: resolve });
     if (motion === "drift") {
       timeline
-        .to(words, { y: -22, opacity: 0, filter: "blur(10px)", duration: 0.85, stagger: 0.025, ease })
+        .to(words, { y: -22, opacity: 0, ...(blurAllowed ? { filter: "blur(10px)" } : {}), duration: 0.85, stagger: 0.025, ease })
         .to(answers, { y: -12, opacity: 0, duration: 0.6 }, 0.15)
         .to([eyebrow, whisper], { opacity: 0, duration: 0.35 }, 0);
     } else if (motion === "shutter") {
@@ -291,7 +307,7 @@ export function sceneExit(
     } else if (motion === "shimmer") {
       document.documentElement.classList.add("is-shimmer");
       timeline
-        .to(words, { y: -14, opacity: 0, filter: "blur(6px)", duration: 0.55, ease })
+        .to(words, { y: -14, opacity: 0, ...(blurAllowed ? { filter: "blur(6px)" } : {}), duration: 0.55, ease })
         .to(answers, { y: -10, opacity: 0, duration: 0.45 }, 0.05)
         .to([eyebrow, whisper], { opacity: 0, duration: 0.25 }, 0)
         .add(() => document.documentElement.classList.remove("is-shimmer"), 0.65);
@@ -312,7 +328,7 @@ export function sceneExit(
         .to([eyebrow, whisper], { opacity: 0, duration: 0.24 }, 0);
     } else {
       timeline
-        .to(words, { x: 26, opacity: 0, filter: "blur(6px)", duration: 0.42, stagger: 0.025, ease })
+        .to(words, { x: 26, opacity: 0, ...(blurAllowed ? { filter: "blur(6px)" } : {}), duration: 0.42, stagger: 0.025, ease })
         .to(answers, { x: 18, opacity: 0, duration: 0.34, stagger: 0.02, ease }, 0.05)
         .to([eyebrow, whisper], { opacity: 0, duration: 0.24 }, 0);
     }

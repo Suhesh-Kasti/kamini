@@ -9,6 +9,20 @@
   transition: background 700ms var(--ease-breath), box-shadow 700ms var(--ease-breath), transform 700ms var(--ease-snap);
 }
 
+@media (pointer: coarse) {
+  .scene__sheet {
+    transition: background 700ms var(--ease-breath), transform 700ms var(--ease-snap);
+  }
+
+  .answer {
+    transition: background 280ms var(--ease-breath), color 280ms var(--ease-breath), border-color 280ms var(--ease-breath);
+  }
+
+  .scratch-card {
+    transition: none;
+  }
+}
+
 .question {
   transition: color 400ms var(--ease-breath), letter-spacing 400ms var(--ease-breath);
 }
