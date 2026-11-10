@@ -1004,6 +1004,23 @@ function buildEndingActions(): void {
   restart.addEventListener("click", () => restartExperience());
 
   endingActions.append(replay, restart);
+
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true;
+  if (config.global.install_prompt && !standalone) {
+    const install = document.createElement("button");
+    install.type = "button";
+    install.className = "soft-btn";
+    const installIcon = document.createElement("i");
+    installIcon.className = "fa-solid fa-download";
+    installIcon.setAttribute("aria-hidden", "true");
+    const installLabel = document.createElement("span");
+    installLabel.textContent = config.install.button;
+    install.append(installIcon, installLabel);
+    install.addEventListener("click", () => showInstall(true));
+    endingActions.append(install);
+  }
 }
 
 function revealEndingActions(): void {
@@ -1105,7 +1122,7 @@ async function showEnding(themeId = preferredThemeId()): Promise<void> {
   updateDebug();
 
   if (config.global.install_prompt && !prefs.installDismissed) {
-    gsap.delayedCall(1.8, showInstall);
+    gsap.delayedCall(1.8, () => showInstall(false));
   }
 }
 
@@ -1454,6 +1471,11 @@ function bindPanel(): void {
     });
   }
 
+  qs<HTMLButtonElement>("[data-install-open]")?.addEventListener("click", () => {
+    closePanel();
+    showInstall(true);
+  });
+
   const shuffleButton = qs<HTMLButtonElement>("[data-shuffle]");
   if (shuffleButton) {
     shuffleButton.addEventListener("click", () => {
@@ -1511,8 +1533,8 @@ function bindPanel(): void {
   applyPanelState();
 }
 
-function showInstall(): void {
-  if (prefs.installDismissed) return;
+function showInstall(force = false): void {
+  if (!force && prefs.installDismissed) return;
   const install = qs("#install");
   if (!install) return;
   const title = qs("[data-install-title]");

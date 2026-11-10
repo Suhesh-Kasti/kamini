@@ -84,6 +84,16 @@ const permissionLabel = (permissions: string[]) =>
   </section>
 
   <section class="sheet__section">
+    <p class="sheet__label"><span>keep it close</span></p>
+    <div class="sheet__actions">
+      <button type="button" class="soft-btn" data-install-open>
+        <i class="fa-solid fa-download" aria-hidden="true"></i>
+        <span>{siteConfig.install.button}</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="sheet__section">
     <p class="sheet__label"><span>little games</span></p>
     <p class="sheet__note">turn off anything that does not feel like you. nothing leaves this phone.</p>
     <div class="game-list" data-game-list>

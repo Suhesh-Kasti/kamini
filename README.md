@@ -42,7 +42,7 @@ No two presets share a type pairing or a scene.
 
 ## Quiz beats and variants
 
-Questions are fixed story beats. Each beat has three or more delivery variants, so the wording, button labels, entrance motion, microcopy, and minigame pool can change between visits without moving the story.
+The finished story is a fixed five-beat sequence: the pair puzzle, the scratch password, the runaway wrong answers, catch the camera, then the cat cuddle and the two-photo print ending. The variant shape remains in the schema for future deliveries; this starter story uses one variant per beat to keep the narrative exact.
 
 ```yaml
 questions:
@@ -71,7 +71,7 @@ questions:
         animation: "snap"
 ```
 
-The session planner weights variants by `1 / (1 + times_seen)`, stores counts in `localStorage`, and keeps a fixed beat order. The settings sheet has a shuffle action that clears the seen log and rerolls the current session. A tiny sparkle appears when unseen variants exist.
+The session planner keeps the beat order fixed, stores seen variants in `localStorage`, and never chooses the same minigame twice in a session. The settings sheet has a shuffle action for future variant sets.
 
 ## Wrong-button personalities
 
@@ -99,6 +99,8 @@ minigames:
 
 All eighteen registered games are playable: scratch card, catch the camera, catch the little heart, drag to target, tilt pour, hold to fill, sort bins, pet the character, wipe fog, memory match, choose an item, pull the thread, blow the cloud away, tap on the beat, trace the line, shake to reveal, feed the cat, and spin the wheel.
 
+Wipe the fog now reveals the same portrait as the scratch card. A static blurred copy sits over the sharp photo, so the face is recognisable through the mist; wiping fades the blurred layer away.
+
 The planner never chooses the same minigame twice in one session. If a pool is exhausted it picks another unused game, then falls back to a tap, never a repeat.
 
 The planner intersects the variant pool with enabled games, device capabilities, permissions, and theme affinity. If a game cannot run it falls back along `fallback_game_id`, then to a built-in tap, so a question never stalls. The settings sheet lists every game with device icons and a switch. Disabling a game removes it from the session pool.
@@ -113,7 +115,7 @@ The camera game is loaded lazily only when chosen. The custom permission card al
 
 ## Keep me and print
 
-When a photo is shown, a small `keep me` pill opens a print layout containing only the photo, a handwritten caption, and a signature. Use `global.print_caption` and `global.print_signature` in YAML. The print stylesheet hides the rest of the site.
+The camera still offers `keep me`. In the final ending, both photos are shown together and a single `print one` pill opens a print layout containing only the first photo, a handwritten caption, and a signature. Only one image is printable. Use `global.print_caption` and `global.print_signature` in YAML. The print stylesheet hides the rest of the site.
 
 ## Debugging
 
@@ -195,7 +197,7 @@ themes:
       photo_index: 0
 ```
 
-Themes without `photo_index` stay photo-free. Add a set of options under `global` and pick one by index. Use `photo_indices` for a small side-by-side strip. A single override path works too. Any displayed ending photo gets the keep me print control. See `public/images/README.md`.
+Every finished ending uses `photo_indices: [0, 1]` to show both portraits side by side. Remove that list from a theme to make it photo-free. The single `print one` control prints only the first image.
 
 ## Music
 
@@ -235,7 +237,7 @@ The 3D layer is hand-built Three.js: rounded geometry, PBR materials, procedural
 
 ## PWA
 
-`public/manifest.webmanifest`, `public/sw.js`, and `public/icons/` make it installable. The shell and same-origin assets are cached. After the ending, a soft prompt invites an install, once.
+`public/manifest.webmanifest`, `public/sw.js`, and `public/icons/` make it installable. The shell and same-origin assets are cached. The ending has a permanent `add to home` action, and the settings sheet has the same action, so dismissing the soft prompt never removes the option for a future visit.
 
 ## Project map
 

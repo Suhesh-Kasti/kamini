@@ -67,7 +67,14 @@
 }
 
 .mg-camera__video {
-  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.001;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .mg-camera__catch {
@@ -1437,4 +1444,43 @@ html[data-motion="soft"] .mg-wheel__result {
 
 .mg-bin.is-fed .mg-bin__mouth {
   background: var(--c-primary);
+}
+
+/* Wipe fog photo ------------------------------------------------------- */
+
+.mg-wipe__under {
+  overflow: hidden;
+}
+
+.mg-wipe__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: none;
+}
+
+.mg-wipe__photo--soft {
+  filter: blur(8px) saturate(0.92);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.mg-wipe__under p,
+.mg-wipe__under small,
+.mg-wipe__sparkle {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 10px rgba(255, 255, 255, 0.45);
+}
+
+.mg-wipe__under p {
+  margin: 0;
+  align-self: end;
+}
+
+.mg-wipe__under small {
+  display: block;
+  margin-top: -0.25rem;
 }

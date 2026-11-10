@@ -1186,7 +1186,22 @@ const mountWipe: GameMount = (container, ctx) => {
   const { root } = gameShell("mg-wipe", str(ctx.content, "prompt", "wipe the fog away."));
   const card = el("div", "mg-wipe__card");
   const under = el("div", "mg-wipe__under");
-  under.innerHTML = `<span class="mg-wipe__sparkle"><i class="fa-solid fa-star" aria-hidden="true"></i></span><p>${str(ctx.content, "reveal", "the evidence is still here.")}</p><small>${str(ctx.content, "caption", "through the mist.")}</small>`;
+  const imageSrc = str(ctx.content, "image");
+  if (imageSrc) {
+    const sharp = document.createElement("img");
+    sharp.className = "mg-wipe__photo";
+    sharp.src = new URL(imageSrc, document.baseURI).href;
+    sharp.alt = str(ctx.content, "caption", "the face behind the fog");
+    sharp.draggable = false;
+    const soft = sharp.cloneNode(true) as HTMLImageElement;
+    soft.classList.add("mg-wipe__photo--soft");
+    soft.alt = "";
+    under.append(sharp, soft);
+  }
+  under.insertAdjacentHTML(
+    "beforeend",
+    `<span class="mg-wipe__sparkle"><i class="fa-solid fa-star" aria-hidden="true"></i></span><p>${str(ctx.content, "reveal", "the evidence is still here.")}</p><small>${str(ctx.content, "caption", "through the mist.")}</small>`
+  );
   const canvas = document.createElement("canvas");
   canvas.className = "mg-wipe__canvas";
   const label = el("span", "mg-wipe__label", "wipe");
@@ -1216,6 +1231,8 @@ const mountWipe: GameMount = (container, ctx) => {
     card.classList.add("is-open");
     label.classList.add("is-gone");
     hint.textContent = "there it is.";
+    const soft = under.querySelector<HTMLElement>(".mg-wipe__photo--soft");
+    if (soft) gsap.to(soft, { opacity: 0, duration: 0.45, ease: "power2.out" });
     ctx.cue("success");
     ctx.whisper(str(ctx.content, "reveal", "there it is."));
     gsap.to(canvas, { opacity: 0, duration: 0.4, ease: "power2.out" });
@@ -1372,7 +1389,7 @@ const mountMemory: GameMount = (container, ctx) => {
       gsap.fromTo([a, card], { scale: 1 }, { scale: 1.06, duration: 0.18, yoyo: true, repeat: 1, ease: "power2.inOut" });
       if (matched === pairs.length) {
         done = true;
-        hint.textContent = "all of them. of course they match.";
+        hint.textContent = str(ctx.content, "success", "all of them. of course they match.");
         window.setTimeout(() => { if (alive) ctx.complete(); }, 850);
       }
     } else {

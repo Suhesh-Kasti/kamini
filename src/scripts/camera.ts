@@ -58,7 +58,6 @@ export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () 
   video.muted = true;
   video.playsInline = true;
   video.srcObject = ctx.stream;
-  root.append(video);
   container.append(root);
 
   const stage = root.querySelector<HTMLElement>(".mg-camera__catch");
@@ -68,6 +67,8 @@ export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () 
   const image = root.querySelector<HTMLImageElement>("[data-selfie-img]");
   const note = root.querySelector<HTMLElement>(".mg-camera__note");
   if (!stage || !target || !away || !result || !image || !note) throw new Error("Camera UI failed");
+  stage.append(video);
+  void video.play().catch(() => undefined);
 
   const stopStream = () => ctx.stream?.getTracks().forEach((track) => track.stop());
 
@@ -92,19 +93,29 @@ export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () 
     drift?.kill();
     target.classList.add("is-caught");
     stage.classList.add("is-caught");
-    stopStream();
     try { await video.play(); } catch { /* the stream may already have a frame */ }
-    if (video.videoWidth === 0) {
+    if (video.videoWidth === 0 || video.readyState < 2) {
       await new Promise<void>((resolve) => {
-        const timer = window.setTimeout(resolve, 900);
-        video.addEventListener("loadedmetadata", () => {
+        const timer = window.setTimeout(resolve, 1200);
+        const ready = () => {
           window.clearTimeout(timer);
           resolve();
-        }, { once: true });
+        };
+        video.addEventListener("loadeddata", ready, { once: true });
+        video.addEventListener("playing", ready, { once: true });
       });
     }
-    const width = video.videoWidth || 720;
-    const height = video.videoHeight || 960;
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) {
+      capturing = false;
+      target.classList.remove("is-caught");
+      stage.classList.remove("is-caught");
+      ctx.cue("miss");
+      ctx.whisper("the camera blinked. catch it again.");
+      driftTarget();
+      return;
+    }
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -117,11 +128,13 @@ export function mountCameraGame(container: HTMLElement, ctx: CameraContext): () 
     context.scale(-1, 1);
     context.drawImage(video, 0, 0, width, height);
     captured = canvas.toDataURL("image/jpeg", 0.86);
+    stopStream();
     image.src = captured;
     result.hidden = false;
     root.querySelector<HTMLElement>(".mg-camera__privacy")?.setAttribute("hidden", "");
     away.hidden = true;
     target.disabled = true;
+    video.remove();
     ctx.cue("success");
     ctx.whisper(str(ctx.content, "note", "there you are."));
     gsap.fromTo(result, { opacity: 0, y: 14, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.3)" });

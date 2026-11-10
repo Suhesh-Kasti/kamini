@@ -112,6 +112,7 @@ themes:
     music: null
     ending:
       animation: "kitten_apology"
+      photo_indices: [0, 1]
       # photo_index: 0
       note: "You can be annoyed in high resolution. I am keeping both. One is on the fridge, one is on my phone, and there is nothing you can do about it."
       signature: "not sorry"
@@ -145,6 +146,7 @@ themes:
     music: null
     ending:
       animation: "clouds_part_bloom"
+      photo_indices: [0, 1]
       # photo_index: 0
       note: "I will not make you look at them. I will just keep them. For evidence. And for the days you forget how ridiculous you are."
       signature: "for the record"
@@ -178,6 +180,7 @@ themes:
     music: null
     ending:
       animation: "chocolate_snap"
+      photo_indices: [0, 1]
       # photo_index: 1
       note: "I would trade you chocolate, but I know you would still want the photos gone. Too bad. They are staying."
       signature: "no deal"
@@ -211,6 +214,7 @@ themes:
     music: null
     ending:
       animation: "magazine_reveal"
+      photo_indices: [0, 1]
       # photo_index: 1
       note: "You cannot buy your way out of this one. I am keeping both, and I am framing the laughing one."
       signature: "your enabler"
@@ -244,6 +248,7 @@ themes:
     music: null
     ending:
       animation: "piggy_bank_bloom"
+      photo_indices: [0, 1]
       # photo_index: 0
       note: "These photos are an investment. I am not selling. The fridge agrees with me."
       signature: "long term"
@@ -277,6 +282,7 @@ themes:
     music: null
     ending:
       animation: "yarn_weave_note"
+      photo_indices: [0, 1]
       # photo_index: 1
       note: "I crocheted a frame for the evidence. Now it lives here. You are welcome."
       signature: "stitched and staying"
@@ -337,10 +343,10 @@ minigames:
   enabled_by_default: true
   status: ready
   content:
-    prompt: scratch until the picture opens.
+    prompt: scratch below to get the password to the backups.
     image: images/portrait-02.webp
-    reveal: the laughing one. you hate it. I know.
-    caption: lock screen. no regrets.
+    reveal: awww. you look so adorable.
+    caption: 'the password is: you are adorable.'
 - id: camera_selfie
   name: catch the little camera
   description: catch the camera and it takes one still. local only.
@@ -355,10 +361,10 @@ minigames:
   status: ready
   content:
     title: let me see the face I am trying to make smile
-    body: This stays on your phone. Nothing is uploaded. This is just for you and me.
-    note: look at you, being all pretty while I am being sneaky.
+    body: This stays on your device. Nothing is uploaded. This is just for you and me.
+    prompt: catch the camera to move forward.
+    note: see, in those pictures you look cuter and younger than you look now.
     caption: kept on {date}
-    prompt: catch the little camera. it is quicker than you think.
 - id: catch_object
   name: catch the little heart
   description: a tiny heart drifts and dodges. catch it.
@@ -462,7 +468,7 @@ minigames:
   enabled_by_default: true
   status: ready
   content:
-    prompt: the cat is sleeping on the evidence. pet it awake.
+    prompt: pet the cat. cuddle with it. it has missed you.
     character: cat
 - id: wipe_fog
   name: wipe the fog
@@ -476,9 +482,10 @@ minigames:
   enabled_by_default: true
   status: ready
   content:
-    prompt: wipe the fog away.
-    reveal: the evidence is still here.
-    caption: through the mist.
+    prompt: wipe the fog so you can see who is behind it.
+    image: images/portrait-02.webp
+    reveal: awww. you look so adorable.
+    caption: you know this face.
 - id: memory_match
   name: match the little pairs
   description: turn over the cards and find the pairs.
@@ -491,7 +498,8 @@ minigames:
   enabled_by_default: true
   status: ready
   content:
-    prompt: find the pairs. the cat is judging your memory.
+    prompt: solve this puzzle to be able to delete the photos.
+    success: you solved the puzzle. now the backups.
     icons:
     - cat
     - dog
@@ -638,319 +646,91 @@ minigames:
     - both
     result: both. obviously.
 
-# Fixed story spine. Each beat has three delivery variants.
+# Fixed story spine for the finished sequence.
 questions:
-- id: photo_delete
+- id: puzzle
   sequence_index: 1
-  eyebrow: a small hostage situation
+  eyebrow: a small puzzle
   whispers:
-  - the delete button has filed a complaint
-  - I saw that
-  - the evidence is staying
+  - start with the pairs.
+  - the photos are not going anywhere.
   variants:
-  - id: soft
-    text: These photos are kind of silly. Want me to delete them?
-    buttons:
-    - label: delete them
-      role: wrong
-      personality: scaredy
-    - label: I am not above bribery
-      role: correct
-      on_hover: grow
-      on_click: grow
-      next: which_one
+  - id: story
+    text: Solve this puzzle to be able to delete the photos.
     minigame_pool:
-    - buttons
+    - memory_match
     microcopy:
-    - the delete button is already running
-    - you are doing the guilty face
-    - I saw you try to hide the evidence
+    - start with the pairs.
+    - the photos are not going anywhere.
     animation: pillow
-  - id: bold
-    text: I dare you to delete these photos. I double dare you.
-    minigame_pool:
-    - catch_object
-    - drag_to_target
-    - rhythm_tap
-    - feed_cat
-    microcopy:
-    - the evidence is faster than you
-    - caught it yet
-    - it is very attached to me
-    animation: snap
-  - id: tease
-    text: You would not delete these. You love them too much.
-    minigame_pool:
-    - scratch_card
-    - choose_item
-    - trace_line
-    - spin_wheel
-    microcopy:
-    - go on, scratch it
-    - you are not fooling anyone
-    - the photos are load-bearing
-    animation: drift
-- id: which_one
+- id: password
   sequence_index: 2
-  eyebrow: be honest
+  eyebrow: the backup password
   whispers:
-  - you hate both. I can tell.
-  - the photos are not listening
-  - this is a safe space. not really.
+  - the password is under the soft cover.
   variants:
-  - id: honest
-    text: Which one do you hate more? The park one where you are looking back, or the laughing one with your eyes closed?
-    buttons:
-    - label: the park one
-      role: wrong
-      personality: sassy
-    - label: the laughing one
-      role: wrong
-      personality: peekaboo
-    - label: both. unfortunately.
-      role: correct
-      on_hover: grow
-      on_click: grow
-      next: yarn_picker
-    minigame_pool:
-    - buttons
-    microcopy:
-    - you hate both. I can tell.
-    - the laughing one is right there
-    - no wrong answer, only evidence
-    animation: pillow
-  - id: investigator
-    text: Investigate the evidence. Which one is worse? Take your time. I have all day.
-    minigame_pool:
-    - choose_item
-    - sort_bins
-    - feed_cat
-    - rhythm_tap
-    microcopy:
-    - the park one has a strong case
-    - the laughing one is a repeat offender
-    - you are very thorough
-    animation: shutter
-  - id: evidence
-    text: One of these is your villain origin story. The other is mine. Which is which?
-    minigame_pool:
-    - memory_match
-    - catch_object
-    - spin_wheel
-    - trace_line
-    microcopy:
-    - the evidence is not going anywhere
-    - you are overthinking it
-    - both. it is both.
-    animation: stitch
-- id: yarn_picker
-  sequence_index: 3
-  eyebrow: a brief distraction
-  whispers:
-  - the yarn will not save you
-  - you are very good at changing the subject
-  - one minute. I am timing you.
-  variants:
-  - id: distraction
-    text: Fine. We can look at yarn for one minute. The photos are still staying, by the way.
-    minigame_pool:
-    - drag_to_target
-    - pull_thread
-    - feed_cat
-    - rhythm_tap
-    microcopy:
-    - the yarn will not save you
-    - you are very good at changing the subject
-    - one minute. I am timing you.
-    animation: stitch
-  - id: dare
-    text: Pick a yarn. Any yarn. It will not distract me from the photos.
-    minigame_pool:
-    - hold_fill
-    - tilt_pour
-    - shake_reveal
-    - blow_reveal
-    microcopy:
-    - the warm one. obviously
-    - you are stalling
-    - the photos are still here
-    animation: bounce
-  - id: pick
-    text: Choose a colour. I will pretend this is not a distraction.
-    minigame_pool:
-    - choose_item
-    - memory_match
-    - trace_line
-    - spin_wheel
-    microcopy:
-    - good taste. still the photos.
-    - you are very easy to distract
-    - one minute only
-    animation: pillow
-- id: lock_screen
-  sequence_index: 4
-  eyebrow: full disclosure
-  whispers:
-  - you are trying to calculate how to steal my phone
-  - the photo is load-bearing
-  - I can see you plotting
-  variants:
-  - id: current
-    text: The laughing one is my lock screen now. Every time I open my phone, you are mid-cackle.
+  - id: story
+    text: Scratch below to get the password to the backups so you can delete the photos.
     minigame_pool:
     - scratch_card
-    - wipe_fog
-    - blow_reveal
-    - trace_line
     microcopy:
-    - you are trying to calculate how to steal my phone
-    - the photo is load-bearing
-    - I can see you plotting
-    animation: shimmer
-  - id: phone
-    text: My lock screen is the laughing one. You are one tap away from seeing it.
+    - the password is under the soft cover.
+    - a little more.
+    animation: drift
+- id: keep
+  sequence_index: 3
+  eyebrow: a very serious question
+  whispers:
+  - those are the cute ones.
+  variants:
+  - id: story
+    text: You want me to keep those cute images of yours, don't you?
     buttons:
-    - label: change it
-      role: wrong
-      personality: clumsy
-    - label: I will steal your phone
+    - label: no, delete it
       role: wrong
       personality: sneaky
-    - label: worth it
+    - label: i won't talk to you
+      role: wrong
+      personality: sassy
+    - label: but i don't look cute in these.
       role: correct
       on_hover: grow
       on_click: grow
-      next: wallpaper
+      next: camera
     minigame_pool:
     - buttons
     microcopy:
-    - no no no
-    - I can see you plotting
-    - the photo is staying
+    - those are the cute ones.
+    - you are not deleting them.
     animation: snap
-  - id: smirk
-    text: I want to see the face you make when you see my lock screen.
-    minigame_pool:
-    - catch_object
-    - camera_selfie
-    - spin_wheel
-    - rhythm_tap
-    microcopy:
-    - there it is
-    - I saw that face
-    - worth it
-    animation: drift
-- id: wallpaper
-  sequence_index: 5
-  eyebrow: more evidence
+- id: camera
+  sequence_index: 4
+  eyebrow: proof of cuteness
   whispers:
-  - you blinked. it is captured forever.
-  - the printer is already warm
-  - you cannot delete a wallpaper with your mind
+  - catch the little camera.
   variants:
-  - id: current
-    text: The park one is my wallpaper. The one where you are mid-blink and slightly furious.
-    buttons:
-    - label: delete it
-      role: wrong
-      personality: showoff
-    - label: I am telling everyone
-      role: wrong
-      personality: hungry
-    - label: keep it
-      role: correct
-      on_hover: grow
-      on_click: grow
-      next: final_ask
+  - id: story
+    text: You have to catch the camera to move forward.
     minigame_pool:
-    - buttons
+    - camera_selfie
     microcopy:
-    - you blinked. it is captured forever.
-    - the printer is already warm
-    - you cannot delete a wallpaper with your mind
-    animation: snap
-  - id: fridge
-    text: The fridge already has a copy. The wallpaper is just for me.
-    minigame_pool:
-    - sort_bins
-    - memory_match
-    - feed_cat
-    - rhythm_tap
-    microcopy:
-    - the fridge is very proud
-    - you are outnumbered
-    - the photos are staying
-    animation: shutter
-  - id: blink
-    text: You cannot delete a wallpaper with your mind. I have tried.
+    - catch the little camera.
+    - it is quicker than you think.
+    animation: shimmer
+- id: cuddle
+  sequence_index: 5
+  eyebrow: a small reward
+  whispers:
+  - the cat has missed you.
+  variants:
+  - id: story
+    text: Pet the cat. Cuddle with it. It has missed you.
     minigame_pool:
     - pet_character
-    - tilt_pour
-    - shake_reveal
-    - blow_reveal
     microcopy:
-    - the cat agrees with me
-    - the printer is warm
-    - you are very cute when you lose
-    animation: pillow
-- id: final_ask
-  sequence_index: 6
-  eyebrow: last one, promise
-  whispers:
-  - the fridge has already picked a favourite
-  - you can hate them in high resolution
-  - this is the most fun I have had all week
-  variants:
-  - id: current
-    text: Last one. I am printing both for the fridge. Any last words?
-    buttons:
-    - label: print them
-      role: correct
-      on_hover: grow
-      on_click: grow
-      next: ending
-    - label: both. framed.
-      role: correct
-      on_hover: grow
-      on_click: grow
-      next: ending
-    - label: I will hide the printer
-      role: wrong
-      personality: proud
-    minigame_pool:
-    - buttons
-    microcopy:
-    - the fridge has already picked a favourite
-    - you can hate them in high resolution
-    - this is the most fun I have had all week
+    - the cat has missed you.
+    - purr.
     animation: bounce
-  - id: goodbye
-    text: Last one. I am printing both. You can hold the paper.
-    minigame_pool:
-    - hold_fill
-    - camera_selfie
-    - pull_thread
-    - blow_reveal
-    - shake_reveal
-    - trace_line
-    microcopy:
-    - hold it like you mean it
-    - the printer is warm
-    - one more memory
-    animation: drift
-  - id: wheel
-    text: Last one. Pick the ending you can live with. I am still printing both.
-    minigame_pool:
-    - choose_item
-    - memory_match
-    - spin_wheel
-    - rhythm_tap
-    - feed_cat
-    microcopy:
-    - the wheel is rigged. lovingly.
-    - you are very easy to tease
-    - both. obviously.
-    animation: stitch
 
 ending:
   replay_label: "one more time"
@@ -959,34 +739,19 @@ ending:
 
 ending_notes:
   angry_kitten:
-  - the photos are on the fridge. the cat has claimed them.
-  - you can be annoyed. the evidence is staying.
-  - I kept both. obviously.
+  - you can print one. the other stays with me, claw marks and all.
   sad_cloud:
-  - the rain stopped. the photos stayed.
-  - you can be sad about it. I am still printing both.
-  - a small cloud, a large amount of evidence.
+  - you can print one. the other stays here, safe and dry.
   sweet_ask:
-  - I will trade you chocolate for the photos. No? Then I am printing both.
-  - sweetheart, the evidence is staying.
-  - both. framed. with chocolate.
+  - you can print one. the other stays with me, wrapped in gold.
   shopping_muse:
-  - you cannot buy your way out of these photos.
-  - the photos are the accessory.
-  - 'issue no. 02: both, forever.'
+  - you can print one. the other is the limited edition. mine.
   save_the_coins:
-  - these photos are an investment. I am keeping both.
-  - the little future includes the evidence.
-  - worth every coin.
+  - you can print one. the other is the investment.
   cozy_crochet:
-  - you cannot crochet over the evidence. I am printing both.
-  - the thread leads back to the photos.
-  - both. stitched in.
+  - you can print one. the other stays stitched to me.
   just_for_fun:
-  - the fridge has already picked a favourite.
-  - you can hate them in high resolution.
-  - this is the most fun I have had all week.
-
+  - you can print one. I am keeping the other. obviously.
 
 # ================================================================
 # THE TINY STAR
