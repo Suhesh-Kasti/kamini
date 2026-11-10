@@ -832,15 +832,19 @@ const mountDrag: GameMount = (container, ctx) => {
 
 const mountTilt: GameMount = (container, ctx) => {
   const { root } = gameShell("mg-tilt", str(ctx.content, "prompt", "tilt until the basket is full."));
+  const beer = str(ctx.content, "mode") === "beer";
+  if (beer) root.classList.add("is-beer");
   const stage = el("div", "mg-tilt__stage");
+  if (beer) stage.classList.add("is-beer");
   const stream = el("div", "mg-tilt__stream");
   for (let index = 0; index < 14; index += 1) stream.append(el("i", "mg-tilt__spark"));
   const basket = el("div", "mg-tilt__basket");
+  if (beer) basket.append(el("span", "mg-tilt__basket-label", "beer"));
   const meter = el("div", "mg-tilt__meter");
   const fill = el("span", "mg-tilt__fill");
   meter.append(fill);
   stage.append(stream, basket);
-  const hint = el("p", "interaction__hint", "lean into it.");
+  const hint = el("p", "interaction__hint", beer ? "tilt to pour. the phone is right there." : "lean into it.");
   root.append(stage, meter, hint);
   container.append(root);
 
@@ -866,7 +870,9 @@ const mountTilt: GameMount = (container, ctx) => {
     basket.classList.add("is-fed");
     stage.classList.add("is-fed");
     ctx.cue("success");
-    ctx.whisper("that is enough. the basket is happy.");
+    const success = str(ctx.content, "success", "that is enough. the basket is happy.");
+    ctx.whisper(success);
+    hint.textContent = success;
     window.setTimeout(() => { if (alive) ctx.complete(); }, 900);
   };
   const onTilt = (event: DeviceOrientationEvent) => {
@@ -1494,7 +1500,7 @@ const mountPull: GameMount = (container, ctx) => {
     ctx.whisper(str(ctx.content, "reveal", "there it is."));
     gsap.to(ball, { scale: 0.2, rotate: 180, opacity: 0.4, duration: 0.5, ease: "power3.in" });
     gsap.to(note, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" });
-    window.setTimeout(() => { if (alive) ctx.complete(); }, 1050);
+    window.setTimeout(() => { if (alive) ctx.complete(); }, 2500);
   };
   const update = (value: number) => {
     distance = Math.max(0, value);

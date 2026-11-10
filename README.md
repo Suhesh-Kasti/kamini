@@ -42,7 +42,7 @@ No two presets share a type pairing or a scene.
 
 ## Quiz beats and variants
 
-The finished story is a fixed five-beat sequence: the pair puzzle, the scratch password, the runaway wrong answers, catch the camera, then the cat cuddle and the two-photo print ending. The variant shape remains in the schema for future deliveries; this starter story uses one variant per beat to keep the narrative exact.
+The finished story is a fixed six-beat sequence: the pair puzzle, the scratch password, the runaway wrong answers, catch the camera, the beer pour on the phone, then the thread note and the two-photo print ending. The variant shape remains in the schema for future deliveries; this starter story uses one variant per beat to keep the narrative exact.
 
 ```yaml
 questions:
@@ -97,7 +97,9 @@ minigames:
     status: "ready"
 ```
 
-All eighteen registered games are playable: scratch card, catch the camera, catch the little heart, drag to target, tilt pour, hold to fill, sort bins, pet the character, wipe fog, memory match, choose an item, pull the thread, blow the cloud away, tap on the beat, trace the line, shake to reveal, feed the cat, and spin the wheel.
+All eighteen registered games are playable: scratch card, catch the camera, catch the little heart, drag to target, beer tilt pour, hold to fill, sort bins, pet the character, wipe fog, memory match, choose an item, pull the thread, blow the cloud away, tap on the beat, trace the line, shake to reveal, feed the cat, and spin the wheel.
+
+On phones the beer pour uses the motion sensor and shows the custom tilt prompt first. On desktop the same game follows the mouse. The thread pull reveals the final note about the backups, wallpaper, and lock screen.
 
 Wipe the fog now reveals the same portrait as the scratch card. A static blurred copy sits over the sharp photo, so the face is recognisable through the mist; wiping fades the blurred layer away.
 
@@ -197,7 +199,7 @@ themes:
       photo_index: 0
 ```
 
-Every finished ending uses `photo_indices: [0, 1]` to show both portraits side by side. Remove that list from a theme to make it photo-free. The single `print one` control prints only the first image.
+Every finished ending uses `photo_indices: [0, 1]` to show both portraits side by side. Remove that list from a theme to make it photo-free. The single `print one` control prints only the first image. The ending note explains that only one is printable.
 
 ## Music
 

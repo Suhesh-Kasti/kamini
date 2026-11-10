@@ -417,7 +417,9 @@ minigames:
   enabled_by_default: true
   status: ready
   content:
-    prompt: tilt until the basket is full.
+    prompt: pour me the beer. get me drunk. then take my phone.
+    mode: beer
+    success: the glass is full. the phone is right there.
 - id: hold_fill
   name: hold to fill
   description: press and hold until the little heart is full. let go early and it deflates.
@@ -539,7 +541,7 @@ minigames:
   - cozy_crochet
   content:
     prompt: pull the thread.
-    reveal: the photos are still staying.
+    reveal: those images are too cute to be deleted. I backed them up, made one my wallpaper and the other my lock screen, and I am keeping them. nice try.
 - id: blow_reveal
   name: blow the cloud away
   description: a little breath clears the cloud. needs a microphone.
@@ -717,20 +719,34 @@ questions:
     - catch the little camera.
     - it is quicker than you think.
     animation: shimmer
-- id: cuddle
+- id: pour
   sequence_index: 5
-  eyebrow: a small reward
+  eyebrow: a little bribe
   whispers:
-  - the cat has missed you.
+  - just a sip. then the phone.
   variants:
   - id: story
-    text: Pet the cat. Cuddle with it. It has missed you.
+    text: Pour me the beer. Get me drunk. Then take my phone and delete the photos. Go on.
     minigame_pool:
-    - pet_character
+    - tilt_pour
     microcopy:
-    - the cat has missed you.
-    - purr.
-    animation: bounce
+    - just a sip. then the phone.
+    - keep pouring.
+    animation: drift
+- id: thread
+  sequence_index: 6
+  eyebrow: the backups
+  whispers:
+  - pull the thread. there is a note.
+  variants:
+  - id: story
+    text: Pull the thread. There is a note about the backups.
+    minigame_pool:
+    - pull_thread
+    microcopy:
+    - pull the thread.
+    - a little more.
+    animation: stitch
 
 ending:
   replay_label: "one more time"

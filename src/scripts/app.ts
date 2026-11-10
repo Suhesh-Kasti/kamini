@@ -52,6 +52,7 @@ let currentTheme: Theme = config.themes[config.active_theme] ?? Object.values(co
 let currentSceneKey = "";
 let currentButtons: HTMLButtonElement[] = [];
 let interactionCleanup: MinigameCleanup | null = null;
+let pendingComplete: { question: Question; next?: string } | null = null;
 let sessionPlan: SessionPlan | null = null;
 let currentBase: Question | null = null;
 let currentPlan: PlannedQuestion | null = null;
@@ -273,6 +274,7 @@ function setState(next: SiteState, timeoutMs = 0, fallback?: () => void): void {
   siteState = next;
   locked = next !== "question_active";
   updateDebug();
+  if (next === "question_active") queueMicrotask(flushPendingComplete);
   if (timeoutMs > 0 && fallback) {
     stateTimer = window.setTimeout(() => {
       if (siteState === next) {
@@ -861,8 +863,21 @@ async function advance(target: string | undefined, question: Question): Promise<
   await renderQuestion(resolved);
 }
 
+function flushPendingComplete(): void {
+  const pending = pendingComplete;
+  if (!pending || siteState !== "question_active") return;
+  pendingComplete = null;
+  if (pending.question.id !== currentQuestion.id) return;
+  completeInteraction(pending.question, pending.next);
+}
+
 function completeInteraction(question: Question, next?: string): void {
+  if (siteState === "transitioning") {
+    pendingComplete = { question, next };
+    return;
+  }
   if (siteState !== "question_active") return;
+  pendingComplete = null;
   setState("transitioning", 2800, () => forceRevealQuestion());
   const target = next ?? nextQuestionId(currentBase?.id ?? question.id);
   void advance(target, question);
